@@ -132,6 +132,8 @@ async fn main() {
         //draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
         //draw_cube_wires(vec3(2., 1., 2.), vec3(2., 2., 2.), RED);
         
+
+        
         let position = vec3(0.0, 1.0, 0.0);
         let size = vec3(10.0, 2.0, 1.0);    
         draw_cube(position, size, None, WHITE);       
