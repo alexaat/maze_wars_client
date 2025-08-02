@@ -1,4 +1,4 @@
-use macroquad::prelude::*;
+use macroquad::{prelude::*, text, texture};
 use std::{io, process::exit, usize};
 
 mod preferences;
@@ -23,7 +23,12 @@ fn conf() -> Conf {
 #[macroquad::main(conf)]
 async fn main() {
 
-    let map = match  parse_map("assets/map_one.txt") {
+    // let texture = Texture2D::from_file_with_format(
+    // include_bytes!("../assets/blue.png"),
+    // None,
+    // );
+
+    let mini_map = match  parse_map("assets/map_one.txt") {
         Ok(map) => map,
         Err(error) => {
             println!("Problem opening the file: {error:?}");
@@ -31,10 +36,9 @@ async fn main() {
         },
     };
 
-    let mini_map_config = MiniMapConfig::new(&map, MAP_WIDTH, MAP_HEIGHT, MAP_MARGIN_LEFT, MAP_MARGIN_TOP, BLACK);
+    let mini_map_config = MiniMapConfig::new(&mini_map, MAP_WIDTH, MAP_HEIGHT, MAP_MARGIN_LEFT, MAP_MARGIN_TOP, BLACK);
 
-    let render_target = render_target(MAIN_WIDTH, MAIN_HEIGHT);
-    render_target.texture.set_filter(FilterMode::Nearest);
+    let render_target = render_target_ex(MAIN_WIDTH, MAIN_HEIGHT, RenderTargetParams{sample_count: 1, depth: true});
 
     let world_up = vec3(0.0, 1.0, 0.0);
     let mut yaw: f32 = 1.18; //rotation around y axes   
@@ -49,15 +53,13 @@ async fn main() {
     let mut right = front.cross(world_up).normalize();
 
     //let mut position = vec3(0.0, 1.0, 0.0);
-    let mut position = generate_position(&map);
-    println!("position: {:?}", position);
+    let mut position = generate_position(&mini_map);
     let mut last_mouse_position: Vec2 = mouse_position().into();
 
     set_cursor_grab(true);
     show_mouse(false);
 
-    loop {
-        clear_background(WHITE);
+    loop {     
         
         let delta = get_frame_time();
 
@@ -99,16 +101,23 @@ async fn main() {
 
         position.y = 1.0;
 
-        //2d
+        //2d        
+        set_default_camera();
+        clear_background(WHITE);
         let mut player = Player::new();
         player.name = "Alex".to_string();
         player.position = Position::build(position.x, position.z);
         draw_rectangle_lines(MAP_MARGIN_LEFT as f32, MAP_MARGIN_TOP as f32, MAP_WIDTH as f32, MAP_HEIGHT as f32, 2.0,  DARKGRAY);
         draw_text(&player.name, NAME_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, 20.0, DARKGRAY);
         draw_text(format!("{}", player.score).as_str(), SCORE_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, 20.0, DARKGRAY);
-        render_mini_map(&map, &mini_map_config);
-        draw_player(&player, &mini_map_config, PURPLE);
-        //3d        
+        render_mini_map(&mini_map, &mini_map_config);
+        draw_player(&player, &mini_map_config, PURPLE); 
+        draw_texture_ex(&render_target.texture, MAIN_MARGIN_LEFT as f32, (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32, WHITE, DrawTextureParams{
+            dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
+            ..Default::default()
+        });
+        
+        //3d     
         set_camera(&Camera3D {
             render_target: Some(render_target.clone()),
             position: position,
@@ -117,15 +126,27 @@ async fn main() {
             ..Default::default()
         });
         clear_background(LIGHTGRAY);
-        draw_grid(100, 1., BLACK, GRAY);
-        draw_cube_wires(vec3(0., 1., -6.), vec3(2., 2., 2.), GREEN);
-        draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
-        draw_cube_wires(vec3(2., 1., 2.), vec3(2., 2., 2.), RED);
-        set_default_camera();
-        draw_texture_ex(&render_target.texture, MAIN_MARGIN_LEFT as f32, (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32, WHITE, DrawTextureParams{
-            dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
-            ..Default::default()
-        });
+        draw_grid(20, 1., BLACK, GRAY);
+        //draw_cube_wires(vec3(0.0, 2.0, 0.0), vec3(5., 5., 5.), DARKGREEN);
+        //draw_cube_wires(vec3(0., 1., -6.0), vec3(2., 2., 2.), GREEN);
+        //draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
+        //draw_cube_wires(vec3(2., 1., 2.), vec3(2., 2., 2.), RED);
+        
+        let position = vec3(0.0, 1.0, 0.0);
+        let size = vec3(10.0, 2.0, 1.0);    
+        draw_cube(position, size, None, WHITE);       
+        draw_cube_wires(position, size, BLACK);
+        let position = vec3(0.0, 1.0, 2.0);
+        let size = vec3(10.0, 2.0, 1.0);    
+        draw_cube(position, size, None, WHITE);       
+        draw_cube_wires(position, size, BLACK);  
+        
+        //draw_walls(&mini_map, None, WHITE);
+        //let center = vec3(0.0, 1.0, 0.0);
+        //let size = vec2(4.0, 2.0);   
+        //draw_plane(center, size, None, WHITE);
+        //draw_plane(vec3(0.0, 2.0, 0.), vec2(5., 5.), None, WHITE);
+        //draw_rectangle_ex(0.0, 0.0, w, h, params);
         next_frame().await
     }
 }
@@ -172,7 +193,19 @@ fn draw_player(player: &Player, config: &MiniMapConfig, color: Color){
     let y = config.vertical_offset as f32 + player.position.z*config.cell_height + config.cell_height/2.0;    
     draw_circle(x, y, radius, color);
 }
-
+fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color){
+    for (z, line) in mini_map.into_iter().enumerate(){
+        for(x, cell) in line.iter().enumerate(){
+            if *cell{   
+                let position = vec3(x as f32, 1.0, z as f32);
+                let size = vec3(x as f32 + 1.0, 2.0, z as f32 + 1.0);             
+                draw_cube_wires(vec3(x as f32, 1.0, z as f32), vec3(x as f32 + 1.0, 2.0, z as f32 + 1.0), BLACK);
+                draw_cube(position, size, texture, color);
+            }
+           
+        }
+    }
+}
 
 /*
 use macroquad::prelude::*;
