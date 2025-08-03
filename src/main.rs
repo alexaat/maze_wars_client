@@ -140,101 +140,9 @@ async fn main() {
         //draw_cube_wires(vec3(0., 1., -6.0), vec3(2., 2., 2.), GREEN);
         //draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
         //draw_cube_wires(vec3(2., 1., 2.), vec3(2., 2., 2.), RED);
-        
 
-        
-        //let position = vec3(0.0, 1.0, 0.0);
-        //let size = vec3(1.0, 1.0, 1.0);    
-        //draw_cube(position, size, Some(&texture), WHITE);       
-        //draw_cube_wires(position, size, BLACK);
-        
-        
-        /*
-        //along x
-        let position = vec3(1.0, 1.0, 0.0);
-        let size = vec3(1.0, 1.0, 1.0);    
-        draw_cube(position, size, Some(&texture), WHITE);       
-        //draw_cube_wires(position, size, BLACK);  
-
-        let position = vec3(2.0, 1.0, 0.0);
-        let size = vec3(1.0, 1.0, 1.0);    
-        draw_cube(position, size, Some(&texture), WHITE);       
-        //draw_cube_wires(position, size, BLACK);  
-
-        let position = vec3(3.0, 1.0, 0.0);
-        let size = vec3(1.0, 1.0, 1.0);    
-        draw_cube(position, size, Some(&texture), WHITE);       
-        //draw_cube_wires(position, size, BLACK);  
-
-        let position = vec3(0.0, 1.0, 2.0);
-        draw_wall_along_x(&position, 3); 
-        */
-
-        /*
-        //along z
-        let position = vec3(0.0, 1.0, 0.0);
-        let size = vec3(1.0, 1.0, 1.0);    
-        draw_cube(position, size, Some(&texture), WHITE);      
-    
-        let position = vec3(0.0, 1.0, 1.0);
-        let size = vec3(1.0, 1.0, 1.0);    
-        draw_cube(position, size, Some(&texture), WHITE);       
-       
-        let position = vec3(0.0, 1.0, 2.0);
-        let size = vec3(1.0, 1.0, 1.0);    
-        draw_cube(position, size, Some(&texture), WHITE);       
-        
-
-        let position = vec3(2.0, 1.0, 0.0);
-        draw_wall_along_z(&position, 3); 
-        */
-
-
-        /*
-        let len = 21;
-        let position = vec3(0.0, 1.0, 0.0);
-        draw_wall_along_x(&position, len);
-        let size = vec3(1.0, 1.0, 1.0);    
-        for x in 0..len{
-            let position = vec3(x as f32, 1.0, 1.0);
-            draw_cube(position, size, Some(&texture), WHITE);     
-        }
-        */
-
-        /*
-        let len = 2;
-        let position = vec3(0.0, 1.0, 0.0);
-        draw_wall_along_z(&position, len);
-        let size = vec3(1.0, 1.0, 1.0);    
-        for z in 0..len{
-            let position = vec3(1.0, 1.0, z as f32);
-            draw_cube(position, size, Some(&texture), WHITE);     
-        }
-        */
-
-        /*
-        let position = vec3(0.0, 1.0, 0.0);
-        draw_wall_along_x(&position, 21, &texture);
-        
-        let position = vec3(10.0, 1.0, 1.0);
-        draw_wall_along_z(&position, 2, &texture);
-        
-        let position = vec3(0.0, 1.0, 1.0);
-        draw_wall_along_z(&position, 9, &texture);
-
-        let position = vec3(20.0, 1.0, 1.0);
-        draw_wall_along_z(&position, 9, &texture);
-        */
-
-        //line
-        //let position = vec3(0.0, 1.0, 0.0);
-        //let size = vec3(0.01, 1.0, 0.01);
         draw_walls(&mini_map, Some(&texture), WHITE);
-        //let center = vec3(0.0, 1.0, 0.0);
-        //let size = vec2(4.0, 2.0);   
-        //draw_plane(center, size, None, WHITE);
-        //draw_plane(vec3(0.0, 2.0, 0.), vec2(5., 5.), None, WHITE);
-        //draw_rectangle_ex(0.0, 0.0, w, h, params);
+
         //sky
         let center = vec3(-50.0, 10.0, -50.0);
         let size = vec2(100.0, 100.0);   
@@ -327,32 +235,40 @@ fn draw_wall_along_z(position: &Vec3, len: u32, texture: &Texture2D){
     //draw_cube_wires(pos, size, BLACK);  
 }
 fn handle_wall_collisions(mini_map: &Vec<Vec<bool>>, prev_pos: Vec3, position: &mut Vec3, gap: f32){
-        
-        let player_center_x_one = position.x + 0.5 + gap;
-        let player_center_z_one = position.z + 0.5 + gap; 
-        let player_center_x_two = position.x + 0.5 - gap;
-        let player_center_z_two = position.z + 0.5 - gap;
-        let player_center_x_three = position.x + 0.5 + gap;
-        let player_center_z_three = position.z + 0.5 - gap; 
-        let player_center_x_four = position.x + 0.5 - gap;
-        let player_center_z_four = position.z + 0.5 + gap;         
+    
 
-        let floor_x_one = f32::floor(player_center_x_one);
-        let floor_z_one = f32::floor(player_center_z_one);
-        let floor_x_two = f32::floor(player_center_x_two);
-        let floor_z_two = f32::floor(player_center_z_two);
-        let floor_x_three = f32::floor(player_center_x_three);
-        let floor_z_three = f32::floor(player_center_z_three);
-        let floor_x_four = f32::floor(player_center_x_four);
-        let floor_z_four = f32::floor(player_center_z_four);
-        if mini_map[floor_z_one as usize][floor_x_one as usize] ||
-           mini_map[floor_z_two as usize][floor_x_two as usize] ||
-           mini_map[floor_z_three as usize][floor_x_three as usize] ||
-           mini_map[floor_z_four as usize][floor_x_four as usize] 
-           {
-            *position = prev_pos;
+    let mut pos = position.clone();
+    pos.z = prev_pos.z;
+    let points = [
+        (pos.x + 0.5 + gap,  pos.z + 0.5 + gap),
+        (pos.x + 0.5 - gap,  pos.z + 0.5 - gap),
+        (pos.x + 0.5 + gap,  pos.z + 0.5 - gap),
+        (pos.x + 0.5 - gap,  pos.z + 0.5 + gap)
+    ];
+    let floors = points.map(|item| (f32::floor(item.0), f32::floor(item.1)));
+    for floor in floors{
+        if mini_map[floor.1 as usize][floor.0 as usize] {
+            position.x = prev_pos.x;
+            break; 
         }
-        
+    }
+
+    let mut pos = position.clone();
+    pos.x = prev_pos.x;
+
+    let points = [
+        (pos.x + 0.5 + gap,  pos.z + 0.5 + gap),
+        (pos.x + 0.5 - gap,  pos.z + 0.5 - gap),
+        (pos.x + 0.5 + gap,  pos.z + 0.5 - gap),
+        (pos.x + 0.5 - gap,  pos.z + 0.5 + gap)
+    ];
+    let floors = points.map(|item| (f32::floor(item.0), f32::floor(item.1)));
+    for floor in floors{
+        if mini_map[floor.1 as usize][floor.0 as usize] {
+            position.z = prev_pos.z;
+            break; 
+        }
+    }      
 
 }
 
