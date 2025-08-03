@@ -93,8 +93,8 @@ async fn main() {
         yaw += mouse_delta.x * delta * LOOK_SPEED;
         pitch += mouse_delta.y * delta * -LOOK_SPEED;
 
-        pitch = if pitch > 1.65 { 1.65 } else { pitch };
-        pitch = if pitch < -1.65 { -1.65 } else { pitch };
+        pitch = if pitch > 0.35 { 0.35 } else { pitch };
+        pitch = if pitch < -0.35 { -0.35 } else { pitch };
 
         front = vec3(
             yaw.cos() * pitch.cos(),
@@ -106,9 +106,9 @@ async fn main() {
         right = front.cross(world_up).normalize();
         let up = right.cross(front).normalize();
 
-        position.y = 1.0;
+        position.y = 1.0;   
 
-       
+            
 
         //2d        
         set_default_camera();
@@ -120,7 +120,7 @@ async fn main() {
         draw_text(&player.name, NAME_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, 20.0, DARKGRAY);
         draw_text(format!("{}", player.score).as_str(), SCORE_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, 20.0, DARKGRAY);
         render_mini_map(&mini_map, &mini_map_config);
-        draw_player(&player, &mini_map_config, PURPLE); 
+        draw_player(&player, &mini_map, &mini_map_config, PURPLE); 
         draw_texture_ex(&render_target.texture, MAIN_MARGIN_LEFT as f32, (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32, WHITE, DrawTextureParams{
             dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
             ..Default::default()
@@ -191,13 +191,49 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3{
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    vec3(x, 1.0, z)
+    //vec3(x, 1.0, z)
+    vec3(1.0, 1.0, 9.0)
 }
-fn draw_player(player: &Player, config: &MiniMapConfig, color: Color){
+fn draw_player(player: &Player, mini_map: &Vec<Vec<bool>>, config: &MiniMapConfig, color: Color){
     let radius = f32::min(config.cell_width, config.cell_height)/2.5;
-    let x = config.horizontal_offset as f32 + player.position.x*config.cell_width + config.cell_width/2.0;
-    let y = config.vertical_offset as f32 + player.position.z*config.cell_height + config.cell_height/2.0;    
-    draw_circle(x, y, radius, color);
+    let mut x = config.horizontal_offset as f32 + player.position.x*config.cell_width + config.cell_width/2.0;
+    let mut z = config.vertical_offset as f32 + player.position.z*config.cell_height + config.cell_height/2.0;
+
+
+    //current cell indecies
+    let current_x =f32::floor(player.position.x + 0.5);
+    let current_z =f32::floor(player.position.z + 0.5);
+    println!("player_position: x: {}, z:{}", player.position.x, player.position.z);
+    println!("current position: x: {}, z:{}", current_x, current_z);
+
+    //check z top
+    let index_x = current_x;
+    let index_z = f32::floor(player.position.z);
+    if mini_map[index_z as usize][index_x as usize] {
+        z = config.vertical_offset as f32 + current_z*config.cell_height + config.cell_height/2.0;
+    }
+
+    //z bottom
+    let index_x = current_x;
+    let index_z = f32::ceil(player.position.z);
+    if mini_map[index_z as usize][index_x as usize] {
+         z = config.vertical_offset as f32 + (index_z - 1.0)*config.cell_height + config.cell_height/2.0;
+    }
+
+    //check x left
+    let index_x = f32::floor(player.position.x);
+    let index_z = current_z;
+    if mini_map[index_z as usize][index_x as usize] {
+        x = config.horizontal_offset as f32 + (index_x + 1.0)*config.cell_width + config.cell_width/2.0;
+    }
+
+    //check x right
+    let index_x = f32::floor(player.position.x) + 1.0;
+    let index_z = current_z;
+    if mini_map[index_z as usize][index_x as usize] {
+        x = config.horizontal_offset as f32 + (index_x - 1.0)*config.cell_width + config.cell_width/2.0;
+    }
+    draw_circle(x, z, radius, color);
 }
 fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color){
     for (z, line) in mini_map.into_iter().enumerate(){
