@@ -34,7 +34,7 @@ async fn main() {
     );
 
     let up_texture = Texture2D::from_file_with_format(
-    include_bytes!("../assets/up_200.png"),
+    include_bytes!("../assets/up_180.png"),
     None,
     );
 
@@ -274,9 +274,12 @@ fn draw_player(player: &Player, mini_map: &Vec<Vec<bool>>, config: &MiniMapConfi
     // println!("theta: {}", theta);
 
     //draw_plane(center, size, Some(up_texture), color);
+    draw_rectangle(x, z, image_size, image_size, PURPLE);
     draw_texture_ex(up_texture, x, z, WHITE, DrawTextureParams { dest_size: Some(size), source: None, rotation: theta, flip_x: false, flip_y: false, pivot: None });
 
-    //draw_circle(x, z, radius, color);
+
+    //draw_circle(x, z, 2.0, PURPLE);
+    //draw_circle(x + image_size, z + image_size, 2.0, PURPLE);
     
 }
 fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color){
