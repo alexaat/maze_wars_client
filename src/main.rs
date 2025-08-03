@@ -1,5 +1,5 @@
 use macroquad::{prelude::*, text, texture};
-use std::{io, process::exit, usize};
+use std::{f64::consts::PI, io, process::exit, usize};
 
 mod preferences;
 use preferences::*;
@@ -28,6 +28,16 @@ async fn main() {
     None,
     );
 
+    let sky_texture = Texture2D::from_file_with_format(
+    include_bytes!("../assets/sky.png"),
+    None,
+    );
+
+    let up_texture = Texture2D::from_file_with_format(
+    include_bytes!("../assets/up_200.png"),
+    None,
+    );
+
     let mini_map = match  parse_map("assets/map_one.txt") {
         Ok(map) => map,
         Err(error) => {
@@ -51,6 +61,8 @@ async fn main() {
     )
     .normalize();
     let mut right = front.cross(world_up).normalize();
+
+
 
     //let mut position = vec3(0.0, 1.0, 0.0);
     let mut position = generate_position(&mini_map);
@@ -103,12 +115,11 @@ async fn main() {
         )
         .normalize();
 
+
         right = front.cross(world_up).normalize();
         let up = right.cross(front).normalize();
 
         position.y = 1.0;   
-
-            
 
         //2d        
         set_default_camera();
@@ -116,11 +127,15 @@ async fn main() {
         let mut player = Player::new();
         player.name = "Alex".to_string();
         player.position = Position::build(position.x, position.z);
+        //find projection of front on x_z plane
+        let p = front.dot(world_up)*world_up;
+        let orientation = (front - p).normalize();
+        player.orientation = Orientation::new(orientation.x, orientation.y, orientation.z);
         draw_rectangle_lines(MAP_MARGIN_LEFT as f32, MAP_MARGIN_TOP as f32, MAP_WIDTH as f32, MAP_HEIGHT as f32, 2.0,  DARKGRAY);
         draw_text(&player.name, NAME_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, 20.0, DARKGRAY);
         draw_text(format!("{}", player.score).as_str(), SCORE_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, 20.0, DARKGRAY);
         render_mini_map(&mini_map, &mini_map_config);
-        draw_player(&player, &mini_map, &mini_map_config, PURPLE); 
+        draw_player(&player, &mini_map, &mini_map_config, &up_texture, PURPLE); 
         draw_texture_ex(&render_target.texture, MAIN_MARGIN_LEFT as f32, (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32, WHITE, DrawTextureParams{
             dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
             ..Default::default()
@@ -144,9 +159,9 @@ async fn main() {
         draw_walls(&mini_map, Some(&texture), WHITE);
 
         //sky
-        let center = vec3(-50.0, 10.0, -50.0);
+        let center = vec3(-20.0, 5.0, -20.0);
         let size = vec2(100.0, 100.0);   
-        draw_plane(center, size, None, BLUE);
+        draw_plane(center, size, Some(&sky_texture), WHITE);
         
         //ground
         let center = vec3(-50.0, -0.1, -50.0);
@@ -191,20 +206,26 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3{
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    //vec3(x, 1.0, z)
-    vec3(1.0, 1.0, 9.0)
+    vec3(x, 1.0, z)
+    
 }
-fn draw_player(player: &Player, mini_map: &Vec<Vec<bool>>, config: &MiniMapConfig, color: Color){
+fn draw_player(player: &Player, mini_map: &Vec<Vec<bool>>, config: &MiniMapConfig, up_texture: &Texture2D, color: Color){
     let radius = f32::min(config.cell_width, config.cell_height)/2.5;
     let mut x = config.horizontal_offset as f32 + player.position.x*config.cell_width + config.cell_width/2.0;
     let mut z = config.vertical_offset as f32 + player.position.z*config.cell_height + config.cell_height/2.0;
+    //draw_circle(x, z, radius, color);
 
+    let image_size = f32::min(config.cell_width, config.cell_height);
+    x -= image_size/2.0;
+    z -= image_size/2.0;
 
+    
+    /*
     //current cell indecies
     let current_x =f32::floor(player.position.x + 0.5);
     let current_z =f32::floor(player.position.z + 0.5);
-    println!("player_position: x: {}, z:{}", player.position.x, player.position.z);
-    println!("current position: x: {}, z:{}", current_x, current_z);
+    //println!("player_position: x: {}, z:{}", player.position.x, player.position.z);
+    //println!("current position: x: {}, z:{}", current_x, current_z);
 
     //check z top
     let index_x = current_x;
@@ -233,7 +254,30 @@ fn draw_player(player: &Player, mini_map: &Vec<Vec<bool>>, config: &MiniMapConfi
     if mini_map[index_z as usize][index_x as usize] {
         x = config.horizontal_offset as f32 + (index_x - 1.0)*config.cell_width + config.cell_width/2.0;
     }
-    draw_circle(x, z, radius, color);
+    */
+    
+  
+    let size = vec2(image_size, image_size);
+    //find angle
+    //orientation
+    let o = vec3(player.orientation.x, player.orientation.y, player.orientation.z);
+    //same direction of arrow as on png
+    let n = vec3(0.0, 0.0, -1.0);
+    let cos_theta = o.dot(n);
+    let mut theta = cos_theta.acos();
+    //rotation 360 degrees insted of 180
+    let cross =  o.cross(n);
+    if cross.y < 0.0 {
+        theta = 2.0*PI as f32 - theta;
+    }
+    // println!("cos_theta: {}", cos_theta.acos().to_degrees());
+    // println!("theta: {}", theta);
+
+    //draw_plane(center, size, Some(up_texture), color);
+    draw_texture_ex(up_texture, x, z, WHITE, DrawTextureParams { dest_size: Some(size), source: None, rotation: theta, flip_x: false, flip_y: false, pivot: None });
+
+    //draw_circle(x, z, radius, color);
+    
 }
 fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color){
     for (z, line) in mini_map.into_iter().enumerate(){

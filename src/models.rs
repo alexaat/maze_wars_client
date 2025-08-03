@@ -9,7 +9,8 @@ pub struct Player{
    pub name: String,
    pub position: Position,
    pub score: u32,
-   pub is_active: bool
+   pub is_active: bool,
+   pub orientation: Orientation
 }
 impl Player{
    pub fn new() -> Self{
@@ -18,7 +19,9 @@ impl Player{
          name: String::from(""),
          position: Position::new(),
          score: 0,
-         is_active: true}
+         is_active: true,
+         orientation: Orientation::new(0.0, 0.0, 0.0)
+      }
    }
 }
 
@@ -53,7 +56,7 @@ pub struct MiniMapConfig{
    pub cell_height: f32,
    pub cell_color: Color,
    pub horizontal_offset: u32,
-   pub vertical_offset: u32
+   pub vertical_offset: u32  
 }
 impl MiniMapConfig{
    pub fn new(mini_map: &Vec<Vec<bool>>, mini_map_width: u32, mini_map_height: u32, horizontal_offset: u32, vertical_offset: u32, cell_color: Color) -> Self{
@@ -64,3 +67,18 @@ impl MiniMapConfig{
       MiniMapConfig{cell_width, cell_height, horizontal_offset, vertical_offset, cell_color}
    }
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Orientation{
+   pub x: f32,
+   pub y: f32,
+   pub z: f32
+}
+
+impl Orientation{
+   pub fn new(x: f32, y: f32, z: f32) -> Self{
+      Orientation { x, y, z}
+   }
+}
+
+
