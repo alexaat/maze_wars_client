@@ -80,16 +80,16 @@ async fn main() {
         if is_key_pressed(KeyCode::Escape) {
             break;
         }
-        if is_key_down(KeyCode::Up) {
+        if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
             position += front * MOVE_SPEED;
         }
-        if is_key_down(KeyCode::Down) {
+        if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
             position -= front * MOVE_SPEED;
         }
-        if is_key_down(KeyCode::Left) {
+        if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
             position -= right * MOVE_SPEED;
         }
-        if is_key_down(KeyCode::Right) {
+        if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
             position += right * MOVE_SPEED;
         }
 
