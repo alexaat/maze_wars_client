@@ -126,7 +126,7 @@ async fn main() {
             ..Default::default()
         });
         clear_background(LIGHTGRAY);
-        draw_grid(30, 1., BLACK, GRAY);
+        draw_grid(50, 1., BLACK, GRAY);
         //draw_cube_wires(vec3(0.0, 2.0, 0.0), vec3(5., 5., 5.), DARKGREEN);
         //draw_cube_wires(vec3(0., 1., -6.0), vec3(2., 2., 2.), GREEN);
         //draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
@@ -181,6 +181,7 @@ async fn main() {
         */
 
 
+        /*
         let len = 21;
         let position = vec3(0.0, 1.0, 0.0);
         draw_wall_along_x(&position, len);
@@ -189,8 +190,30 @@ async fn main() {
             let position = vec3(x as f32, 1.0, 1.0);
             draw_cube(position, size, Some(&texture), WHITE);     
         }
+        */
 
+        /*
+        let len = 2;
+        let position = vec3(0.0, 1.0, 0.0);
+        draw_wall_along_z(&position, len);
+        let size = vec3(1.0, 1.0, 1.0);    
+        for z in 0..len{
+            let position = vec3(1.0, 1.0, z as f32);
+            draw_cube(position, size, Some(&texture), WHITE);     
+        }
+        */
+
+        let position = vec3(0.0, 1.0, 0.0);
+        draw_wall_along_x(&position, 21);
         
+        let position = vec3(10.0, 1.0, 1.0);
+        draw_wall_along_z(&position, 2);
+        
+        let position = vec3(0.0, 1.0, 1.0);
+        draw_wall_along_z(&position, 9);
+
+        let position = vec3(20.0, 1.0, 1.0);
+        draw_wall_along_z(&position, 9);
         //draw_walls(&mini_map, None, WHITE);
         //let center = vec3(0.0, 1.0, 0.0);
         //let size = vec2(4.0, 2.0);   
@@ -269,7 +292,7 @@ fn draw_wall_along_x(position: &Vec3, len: u32){
 fn draw_wall_along_z(position: &Vec3, len: u32){
     let size = vec3(1.0, 1.0, len as f32);  
     let mut pos = *position;
-    pos.z += len as f32 - 2.0;
+    pos.z += 0.5*(len as f32 - 1.0);
     if pos.z < 0.0 {
         pos.z = 0.0;
     }
