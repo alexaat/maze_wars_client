@@ -180,10 +180,16 @@ async fn main() {
         draw_wall_along_z(&position, 3); 
         */
 
-        let position = vec3(0.0, 1.0, 0.0);
-        draw_wall_along_x(&position, 21); 
 
-        
+        let len = 21;
+        let position = vec3(0.0, 1.0, 0.0);
+        draw_wall_along_x(&position, len);
+        let size = vec3(1.0, 1.0, 1.0);    
+        for x in 0..len{
+            let position = vec3(x as f32, 1.0, 1.0);
+            draw_cube(position, size, Some(&texture), WHITE);     
+        }
+
         
         //draw_walls(&mini_map, None, WHITE);
         //let center = vec3(0.0, 1.0, 0.0);
@@ -253,7 +259,7 @@ fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Col
 fn draw_wall_along_x(position: &Vec3, len: u32){   
     let size = vec3(len as f32, 1.0, 1.0);  
     let mut pos = *position;
-    pos.x += len as f32 - 1.0;
+    pos.x += 0.5*(len as f32 - 1.0);
     if pos.x < 0.0 {
         pos.x = 0.0;
     }
