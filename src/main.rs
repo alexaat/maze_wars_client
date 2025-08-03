@@ -63,6 +63,8 @@ async fn main() {
         
         let delta = get_frame_time();
 
+         let prev_pos = position.clone();
+
         if is_key_pressed(KeyCode::Escape) {
             break;
         }
@@ -79,6 +81,11 @@ async fn main() {
             position += right * MOVE_SPEED;
         }
 
+
+        let gap: f32 = 0.05;
+        handle_wall_collisions(&mini_map, prev_pos, &mut position, gap);      
+
+
         let mouse_position: Vec2 = mouse_position().into();
         let mouse_delta = mouse_position - last_mouse_position;      
         last_mouse_position = mouse_position;
@@ -86,8 +93,8 @@ async fn main() {
         yaw += mouse_delta.x * delta * LOOK_SPEED;
         pitch += mouse_delta.y * delta * -LOOK_SPEED;
 
-        pitch = if pitch > 0.35 { 0.35 } else { pitch };
-        pitch = if pitch < -0.35 { -0.35 } else { pitch };
+        pitch = if pitch > 1.65 { 1.65 } else { pitch };
+        pitch = if pitch < -1.65 { -1.65 } else { pitch };
 
         front = vec3(
             yaw.cos() * pitch.cos(),
@@ -100,6 +107,8 @@ async fn main() {
         let up = right.cross(front).normalize();
 
         position.y = 1.0;
+
+       
 
         //2d        
         set_default_camera();
@@ -203,23 +212,39 @@ async fn main() {
         }
         */
 
+        /*
         let position = vec3(0.0, 1.0, 0.0);
-        draw_wall_along_x(&position, 21);
+        draw_wall_along_x(&position, 21, &texture);
         
         let position = vec3(10.0, 1.0, 1.0);
-        draw_wall_along_z(&position, 2);
+        draw_wall_along_z(&position, 2, &texture);
         
         let position = vec3(0.0, 1.0, 1.0);
-        draw_wall_along_z(&position, 9);
+        draw_wall_along_z(&position, 9, &texture);
 
         let position = vec3(20.0, 1.0, 1.0);
-        draw_wall_along_z(&position, 9);
-        //draw_walls(&mini_map, None, WHITE);
+        draw_wall_along_z(&position, 9, &texture);
+        */
+
+        //line
+        //let position = vec3(0.0, 1.0, 0.0);
+        //let size = vec3(0.01, 1.0, 0.01);
+        draw_walls(&mini_map, Some(&texture), WHITE);
         //let center = vec3(0.0, 1.0, 0.0);
         //let size = vec2(4.0, 2.0);   
         //draw_plane(center, size, None, WHITE);
         //draw_plane(vec3(0.0, 2.0, 0.), vec2(5., 5.), None, WHITE);
         //draw_rectangle_ex(0.0, 0.0, w, h, params);
+        //sky
+        let center = vec3(-50.0, 10.0, -50.0);
+        let size = vec2(100.0, 100.0);   
+        draw_plane(center, size, None, BLUE);
+        
+        //ground
+        let center = vec3(-50.0, -0.1, -50.0);
+        let size = vec2(100.0, 100.0);   
+        draw_plane(center, size, None, BROWN);
+        
         next_frame().await
     }
 }
@@ -271,34 +296,66 @@ fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Col
         for(x, cell) in line.iter().enumerate(){
             if *cell{   
                 let position = vec3(x as f32, 1.0, z as f32);
-                let size = vec3(x as f32 + 1.0, 2.0, z as f32 + 1.0);             
-                draw_cube_wires(vec3(x as f32, 1.0, z as f32), vec3(x as f32 + 1.0, 2.0, z as f32 + 1.0), BLACK);
+                let size = vec3(1.0, 1.0, 1.0);             
+                //draw_cube_wires(vec3(x as f32, 1.0, z as f32), vec3(x as f32 + 1.0, 2.0, z as f32 + 1.0), BLACK);
                 draw_cube(position, size, texture, color);
             }
            
         }
     }
 }
-fn draw_wall_along_x(position: &Vec3, len: u32){   
+fn draw_wall_along_x(position: &Vec3, len: u32, texture: &Texture2D){   
+   
     let size = vec3(len as f32, 1.0, 1.0);  
     let mut pos = *position;
     pos.x += 0.5*(len as f32 - 1.0);
     if pos.x < 0.0 {
         pos.x = 0.0;
     }
-    draw_cube(pos, size, None, WHITE);       
-    draw_cube_wires(pos, size, BLACK);   
+    draw_cube(pos, size, Some(&texture), WHITE);       
+    //draw_cube_wires(pos, size, BLACK);   
 }
-fn draw_wall_along_z(position: &Vec3, len: u32){
+fn draw_wall_along_z(position: &Vec3, len: u32, texture: &Texture2D){
+   
     let size = vec3(1.0, 1.0, len as f32);  
     let mut pos = *position;
     pos.z += 0.5*(len as f32 - 1.0);
     if pos.z < 0.0 {
         pos.z = 0.0;
     }
-    draw_cube(pos, size, None, WHITE);       
-    draw_cube_wires(pos, size, BLACK);  
+    draw_cube(pos, size, Some(&texture), WHITE);       
+    //draw_cube_wires(pos, size, BLACK);  
 }
+fn handle_wall_collisions(mini_map: &Vec<Vec<bool>>, prev_pos: Vec3, position: &mut Vec3, gap: f32){
+        
+        let player_center_x_one = position.x + 0.5 + gap;
+        let player_center_z_one = position.z + 0.5 + gap; 
+        let player_center_x_two = position.x + 0.5 - gap;
+        let player_center_z_two = position.z + 0.5 - gap;
+        let player_center_x_three = position.x + 0.5 + gap;
+        let player_center_z_three = position.z + 0.5 - gap; 
+        let player_center_x_four = position.x + 0.5 - gap;
+        let player_center_z_four = position.z + 0.5 + gap;         
+
+        let floor_x_one = f32::floor(player_center_x_one);
+        let floor_z_one = f32::floor(player_center_z_one);
+        let floor_x_two = f32::floor(player_center_x_two);
+        let floor_z_two = f32::floor(player_center_z_two);
+        let floor_x_three = f32::floor(player_center_x_three);
+        let floor_z_three = f32::floor(player_center_z_three);
+        let floor_x_four = f32::floor(player_center_x_four);
+        let floor_z_four = f32::floor(player_center_z_four);
+        if mini_map[floor_z_one as usize][floor_x_one as usize] ||
+           mini_map[floor_z_two as usize][floor_x_two as usize] ||
+           mini_map[floor_z_three as usize][floor_x_three as usize] ||
+           mini_map[floor_z_four as usize][floor_x_four as usize] 
+           {
+            *position = prev_pos;
+        }
+        
+
+}
+
 /*
 use macroquad::prelude::*;
 use std::net::UdpSocket;
