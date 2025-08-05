@@ -56,7 +56,7 @@ pub struct MiniMapConfig{
    pub cell_height: f32,
    pub cell_color: Color,
    pub horizontal_offset: u32,
-   pub vertical_offset: u32  
+   pub vertical_offset: u32
 }
 impl MiniMapConfig{
    pub fn new(mini_map: &Vec<Vec<bool>>, mini_map_width: u32, mini_map_height: u32, horizontal_offset: u32, vertical_offset: u32, cell_color: Color) -> Self{
