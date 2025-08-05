@@ -470,19 +470,11 @@ fn draw_player_on_mini_map(player: &Player, mini_map: &Vec<Vec<bool>>, config: &
        {
         println!("right pocket");
         let max_x = config.horizontal_offset as f32 + index_x*config.cell_width;
-        let min_z = config.horizontal_offset as f32 + index_z*config.cell_height;
-        //let max_z = config.horizontal_offset as f32 + (index_z)*config.cell_height;
         x = config.horizontal_offset as f32 + player.position.x*config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z*config.cell_height;
+        z = config.vertical_offset as f32 + index_z*config.cell_height;
         if x > max_x {
            x = max_x;
         }
-        if z < min_z{
-            z = min_z;
-        }
-        // if z > max_z{
-        //     z = max_z
-        // }
     }
 
 
