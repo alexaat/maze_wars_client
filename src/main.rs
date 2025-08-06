@@ -242,7 +242,7 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
     //vec3(x, 1.0, z)
-    vec3(1.0, 1.0, 1.0)
+    vec3(14.0, 1.0, 9.0)
 }
 
 fn draw_player_old(
@@ -495,29 +495,6 @@ fn draw_player_on_mini_map(
     }
 
     /*
-    t-junction
-
-    __________
-    ___  ↗ ___
-       |  |
-       |  |
-
-    */
-    if mini_map[index_z as usize - 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize - 1]
-        && !mini_map[index_z as usize][index_x as usize + 1]
-        && !mini_map[index_z as usize + 1][index_x as usize]
-    {
-        println!("t-junction");
-        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
-        if z < min_z {
-            z = min_z;
-        }
-    }
-
-    /*
     top right corner
     ____
        ↗|
@@ -544,6 +521,82 @@ fn draw_player_on_mini_map(
     }
 
     /*
+        bottom right corner
+
+            |
+           ↗|
+        ----
+
+    */
+    if mini_map[index_z as usize][index_x as usize + 1]
+        && mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+    {
+        println!("bottom right corner");
+        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
+        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if x > max_x {
+            x = max_x
+        }
+        if z > max_z {
+            z = max_z
+        }
+    }
+
+    /*
+       bottom left corner
+
+       |
+       |↗
+       -----
+
+    */
+
+    if mini_map[index_z as usize][index_x as usize - 1]
+        && mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+    {
+        println!("bottom left corner");
+        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
+        let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if x < min_x {
+            x = min_x
+        }
+        if z > max_z {
+            z = max_z
+        }
+    }
+
+    /*
+    t-junction
+
+    __________
+    ___  ↗ ___
+       |  |
+       |  |
+
+    */
+    if mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize + 1][index_x as usize]
+    {
+        println!("t-junction");
+        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
+        if z < min_z {
+            z = min_z;
+        }
+    }
+
+    /*
      right t-junction
 
     |  |__
@@ -562,6 +615,51 @@ fn draw_player_on_mini_map(
         z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         if x < min_x {
             x = min_x;
+        }
+    }
+
+    /*
+        left t-junction
+
+         ____|  |
+         ____  ↗|
+             |  |
+
+    */
+    if mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+    {
+        println!("left t-junction");
+        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
+        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        if x > max_x {
+            x = max_x;
+        }
+    }
+
+    /*
+       up t-junction
+
+         ___|  |___
+              ↗
+         -----------
+
+    */
+
+    if mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+    {
+        println!("up t-junction");
+        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
+        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if z > max_z {
+            z = max_z;
         }
     }
 
