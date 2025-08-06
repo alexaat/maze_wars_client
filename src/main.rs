@@ -72,6 +72,10 @@ async fn main() {
     set_cursor_grab(true);
     show_mouse(false);
 
+    let mut player = Player::new();
+    player.name = "Alex".to_string();
+    player.current_map = String::from("map_one");
+
     loop {
         let delta = get_frame_time();
         let prev_pos = position.clone();
@@ -120,14 +124,10 @@ async fn main() {
         //2d
         set_default_camera();
         clear_background(WHITE);
-        let mut player = Player::new();
-        player.name = "Alex".to_string();
         player.position = Position::build(position.x, position.z);
         //find projection of front on x_z plane
         let p = front.dot(world_up) * world_up;
         let orientation = (front - p).normalize();
-
-        //player.orientation =  Orientation::new(orientation.x, orientation.y, orientation.z);
         player.orientation = orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
         draw_rectangle_lines(
             MAP_MARGIN_LEFT as f32,

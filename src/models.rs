@@ -10,8 +10,8 @@ pub struct Player{
    pub position: Position,
    pub score: u32,
    pub is_active: bool,
-   //pub orientation: Orientation
-   pub orientation: f32
+   pub orientation: f32,
+   pub current_map: String
 }
 impl Player{
    pub fn new() -> Self{
@@ -21,7 +21,8 @@ impl Player{
          position: Position::new(),
          score: 0,
          is_active: true,
-         orientation: 0.0
+         orientation: 0.0,
+         current_map: String::from("")
       }
    }
 }
