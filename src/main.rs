@@ -338,7 +338,7 @@ fn draw_player_on_mini_map(player: &Player, mini_map: &Vec<Vec<bool>>, config: &
     let mut x = config.horizontal_offset as f32 + index_x*config.cell_width;
     let mut z = config.vertical_offset as f32 + index_z*config.cell_height;
 
-    //horizontal tunnel
+    //horizontal tunnel + horizontal pockets
     if mini_map[index_z as usize + 1][index_x as usize] &&
        mini_map[index_z as usize - 1][index_x as usize] &&
        !mini_map[index_z as usize][index_x as usize - 1] &&
