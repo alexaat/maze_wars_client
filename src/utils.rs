@@ -1,5 +1,4 @@
 use std::fs;
-use rand::Rng;
 use macroquad::prelude::{vec3, Vec3};
 use std::{f64::consts::PI};
 
@@ -87,4 +86,19 @@ pub fn orientaion_to_degrees(orientation: Vec3) -> f32{
         theta = 2.0 * PI as f32 - theta;
     }
     theta
+}
+
+
+pub fn is_valid_ip_char(c: char) -> bool {
+    if c >= '0' && c <= '9' {
+        return true;
+    }
+    if c == '.' || c == ':' {
+        return true;
+    }
+    false
+}
+
+pub fn is_valid_name_char(c: char) -> bool {
+    c >= ' ' && c <= '~'
 }

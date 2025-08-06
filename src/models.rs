@@ -1,7 +1,8 @@
 use std::fmt::Debug;
-use macroquad::color::Color;
+use macroquad::{color::Color, texture::RenderTarget};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use macroquad::prelude::{Texture2D, Vec3, Vec2};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Player{
@@ -26,7 +27,6 @@ impl Player{
       }
    }
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Position{
@@ -70,17 +70,18 @@ impl MiniMapConfig{
    }
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
-// pub struct Orientation{
-//    pub x: f32,
-//    pub y: f32,
-//    pub z: f32
-// }
-
-// impl Orientation{
-//    pub fn new(x: f32, y: f32, z: f32) -> Self{
-//       Orientation { x, y, z}
-//    }
-// }
-
-
+pub struct GameParams{
+   pub wall_texture: Texture2D,
+   pub sky_texture: Texture2D,
+   pub up_texture: Texture2D,
+   pub mini_map_config: MiniMapConfig,
+   pub render_target: RenderTarget,
+   pub yaw: f32, 
+   pub pitch: f32, 
+   pub front: Vec3,
+   pub right: Vec3, 
+   pub position: Vec3, 
+   pub last_mouse_position: Vec2,
+   pub mini_map: Vec<Vec<bool>>,
+   pub world_up: Vec3
+}

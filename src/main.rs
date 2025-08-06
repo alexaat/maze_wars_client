@@ -19,15 +19,34 @@ fn conf() -> Conf {
         ..Default::default()
     }
 }
-
 #[macroquad::main(conf)]
 async fn main() {
-    let texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
+    let mut player = Player::new();
+    let mut status = Status::EnterIP;
+    request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
+    let mut server_addr = String::new();
+    //init game engine
+    let mut game_params = init_game_params();
+    set_cursor_grab(true);
+    show_mouse(false);
+    loop {
 
+        match status {
+            Status::EnterIP => {
+                handle_ip_input(&mut status, &mut server_addr)
+            }
+            Status::EnterName =>{
+               handle_name_input(&mut status, &mut player, &server_addr);
+            },
+            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params),
+        }
+        next_frame().await;
+    }
+}
+fn init_game_params() -> GameParams{
+        let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
-
     let up_texture = Texture2D::from_file_with_format(include_bytes!("../assets/up_180.png"), None);
-
     let mini_map = match parse_map("assets/map_one.txt") {
         Ok(map) => map,
         Err(error) => {
@@ -35,7 +54,6 @@ async fn main() {
             exit(1);
         }
     };
-
     let mini_map_config = MiniMapConfig::new(
         &mini_map,
         MAP_WIDTH,
@@ -44,7 +62,6 @@ async fn main() {
         MAP_MARGIN_TOP,
         BLACK,
     );
-
     let render_target = render_target_ex(
         MAIN_WIDTH,
         MAIN_HEIGHT,
@@ -53,143 +70,35 @@ async fn main() {
             depth: true,
         },
     );
-
     let world_up = vec3(0.0, 1.0, 0.0);
-    let mut yaw: f32 = 1.18; //rotation around y axes
-    let mut pitch: f32 = 0.0; //tilt up/down
-
-    let mut front = vec3(
+    let yaw: f32 = 1.18; //rotation around y axes
+    let pitch: f32 = 0.0; //tilt up/down
+    let front = vec3(
         yaw.cos() * pitch.cos(),
         pitch.sin(),
         yaw.sin() * pitch.cos(),
     )
     .normalize();
-    let mut right = front.cross(world_up).normalize();
-
-    let mut position = generate_position(&mini_map);
-    let mut last_mouse_position: Vec2 = mouse_position().into();
-
-    set_cursor_grab(true);
-    show_mouse(false);
-
-    let mut player = Player::new();
-    player.name = "Alex".to_string();
-    player.current_map = String::from("map_one");
-
-    loop {
-        let delta = get_frame_time();
-        let prev_pos = position.clone();
-
-        if is_key_pressed(KeyCode::Escape) {
-            break;
-        }
-        if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-            position += front * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-            position -= front * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-            position -= right * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-            position += right * MOVE_SPEED;
-        }
-
-        let gap: f32 = 0.05;
-        handle_wall_collisions(&mini_map, prev_pos, &mut position, gap);
-
-        let mouse_position: Vec2 = mouse_position().into();
-        let mouse_delta = mouse_position - last_mouse_position;
-        last_mouse_position = mouse_position;
-
-        yaw += mouse_delta.x * delta * LOOK_SPEED;
-        pitch += mouse_delta.y * delta * -LOOK_SPEED;
-
-        pitch = if pitch > 0.35 { 0.35 } else { pitch };
-        pitch = if pitch < -0.35 { -0.35 } else { pitch };
-
-        front = vec3(
-            yaw.cos() * pitch.cos(),
-            pitch.sin(),
-            yaw.sin() * pitch.cos(),
-        )
-        .normalize();
-
-        right = front.cross(world_up).normalize();
-        let up = right.cross(front).normalize();
-
-        position.y = 1.0;
-
-        //2d
-        set_default_camera();
-        clear_background(WHITE);
-        player.position = Position::build(position.x, position.z);
-        //find projection of front on x_z plane
-        let p = front.dot(world_up) * world_up;
-        let orientation = (front - p).normalize();
-        player.orientation = orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
-        draw_rectangle_lines(
-            MAP_MARGIN_LEFT as f32,
-            MAP_MARGIN_TOP as f32,
-            MAP_WIDTH as f32,
-            MAP_HEIGHT as f32,
-            2.0,
-            DARKGRAY,
-        );
-        draw_text(
-            &player.name,
-            NAME_MARGIN_LEFT as f32,
-            NAME_MARGIN_TOP as f32,
-            20.0,
-            DARKGRAY,
-        );
-        draw_text(
-            format!("{}", player.score).as_str(),
-            SCORE_MARGIN_LEFT as f32,
-            NAME_MARGIN_TOP as f32,
-            20.0,
-            DARKGRAY,
-        );
-        render_mini_map(&mini_map, &mini_map_config);
-        draw_player_on_mini_map(&player, &mini_map, &mini_map_config, &up_texture);
-        draw_texture_ex(
-            &render_target.texture,
-            MAIN_MARGIN_LEFT as f32,
-            (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
-                ..Default::default()
-            },
-        );
-
-        //3d
-        set_camera(&Camera3D {
-            render_target: Some(render_target.clone()),
-            position: position,
-            up: up,
-            target: position + front,
-            ..Default::default()
-        });
-        clear_background(LIGHTGRAY);
-        draw_grid(50, 1., BLACK, GRAY);
-        draw_walls(&mini_map, Some(&texture), WHITE);
-
-        //sky
-        let center = vec3(-20.0, 5.0, -20.0);
-        let size = vec2(100.0, 100.0);
-        draw_plane(center, size, Some(&sky_texture), WHITE);
-
-        //ground
-        let center = vec3(-50.0, -0.1, -50.0);
-        let size = vec2(100.0, 100.0);
-        draw_plane(center, size, None, BROWN);
-
-        next_frame().await
+    let right = front.cross(world_up).normalize();
+    let position = generate_position(&mini_map);
+    let last_mouse_position: Vec2 = mouse_position().into();
+    
+    GameParams{
+        wall_texture,
+        sky_texture,
+        up_texture,        
+        mini_map_config,
+        render_target,
+        yaw, 
+        pitch, 
+        front,
+        right, 
+        position, 
+        last_mouse_position,
+        mini_map,
+        world_up
     }
 }
-
 fn parse_map(file_path: &str) -> Result<Vec<Vec<bool>>, io::Error> {
     let content = read_file(file_path)?;
     if !is_map_valid(&content) {
@@ -234,7 +143,6 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let z = spaces[rand_index].1 as f32;
     vec3(x, 1.0, z) 
 }
-
 fn draw_player_on_mini_map(
     player: &Player,
     mini_map: &Vec<Vec<bool>>,
@@ -487,7 +395,6 @@ fn draw_player_on_mini_map(
         },
     );
 }
-
 fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color) {
     for (z, line) in mini_map.into_iter().enumerate() {
         for (x, cell) in line.iter().enumerate() {
@@ -500,7 +407,6 @@ fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Col
         }
     }
 }
-
 fn handle_wall_collisions(
     mini_map: &Vec<Vec<bool>>,
     prev_pos: Vec3,
@@ -539,6 +445,168 @@ fn handle_wall_collisions(
             break;
         }
     }
+}
+//handlers
+fn handle_ip_input(
+    status: &mut Status,
+    server_addr: &mut String,
+) {
+    clear_background(BLACK);
+    let mut server_addr_display = "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+    server_addr_display.push_str(server_addr);
+    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+
+    if let Some(c) = get_char_pressed() {
+        if c == 3 as char || c == 13 as char {
+            *status = Status::EnterName;
+            return;
+        }
+
+        if is_valid_ip_char(c) {
+            server_addr.push(c);
+        }
+    }
+
+    if is_key_pressed(KeyCode::Backspace) {
+        server_addr.pop();
+    }
+    if is_key_pressed(KeyCode::Escape) {
+        exit(0);
+    }
+}
+fn handle_name_input(
+    status: &mut Status,
+    player: &mut Player,
+    server_addr: &String,
+) {
+    clear_background(BLACK);
+    let mut server_addr_display = "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+    server_addr_display.push_str(server_addr);
+
+    let mut player_name_display = "Enter your name:     ".to_string();
+    player_name_display.push_str(&player.name);
+
+    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+    draw_text(player_name_display.as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
+
+    if let Some(c) = get_char_pressed() {
+        if c == 3 as char || c == 13 as char {
+            if player.name.len() > 2{
+               *status = Status::Run;
+               return;
+            }
+        }
+        if player.name.len() < MAX_NAME_LENGTH && is_valid_name_char(c) {
+            player.name.push(c);
+        }
+    }
+
+    if is_key_pressed(KeyCode::Backspace) {
+        player.name.pop();
+    }
+
+    if is_key_pressed(KeyCode::Escape) {
+        exit(0);
+    }
+}
+fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams){
+    let delta = get_frame_time();
+    let prev_pos = game_params.position.clone();
+    if is_key_pressed(KeyCode::Escape) {
+       exit(0);
+    }
+    if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
+        game_params.position +=  game_params.front * MOVE_SPEED;
+    }
+    if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
+        game_params.position -=  game_params.front * MOVE_SPEED;
+    }
+    if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
+         game_params.position -=  game_params.right * MOVE_SPEED;
+    }
+    if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
+         game_params.position +=  game_params.right * MOVE_SPEED;
+    }
+    let gap: f32 = 0.05;
+    handle_wall_collisions(& game_params.mini_map, prev_pos, &mut  game_params.position, gap);
+    let mouse_position: Vec2 = mouse_position().into();
+    let mouse_delta = mouse_position -  game_params.last_mouse_position;
+    game_params.last_mouse_position = mouse_position;
+    game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
+    game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
+    game_params.pitch = if game_params.pitch > 0.35 { 0.35 } else { game_params.pitch };
+    game_params.pitch = if game_params.pitch < -0.35 { -0.35 } else {  game_params.pitch };
+    game_params.front = vec3(
+         game_params.yaw.cos() *  game_params.pitch.cos(),
+         game_params.pitch.sin(),
+         game_params.yaw.sin() *  game_params.pitch.cos(),
+    )
+    .normalize();
+     game_params.right =  game_params.front.cross(game_params.world_up).normalize();
+    let up =  game_params.right.cross( game_params.front).normalize();
+    game_params.position.y = 1.0;
+    //2d
+    set_default_camera();
+    clear_background(WHITE);
+    player.position = Position::build( game_params.position.x,  game_params.position.z);
+    //find projection of front on x_z plane
+    let p =  game_params.front.dot(game_params.world_up) *  game_params.world_up;
+    let orientation = ( game_params.front - p).normalize();
+    player.orientation = orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
+    draw_rectangle_lines(
+        MAP_MARGIN_LEFT as f32,
+        MAP_MARGIN_TOP as f32,
+        MAP_WIDTH as f32,
+        MAP_HEIGHT as f32,
+        2.0,
+        DARKGRAY,
+    );
+    draw_text(
+        &player.name,
+        NAME_MARGIN_LEFT as f32,
+        NAME_MARGIN_TOP as f32,
+        20.0,
+        DARKGRAY,
+    );
+    draw_text(
+        format!("{}", player.score).as_str(),
+        SCORE_MARGIN_LEFT as f32,
+        NAME_MARGIN_TOP as f32,
+        20.0,
+        DARKGRAY,
+    );
+    render_mini_map(& game_params.mini_map, & game_params.mini_map_config);
+    draw_player_on_mini_map(&player, & game_params.mini_map, & game_params.mini_map_config, & game_params.up_texture);
+    draw_texture_ex(
+        & game_params.render_target.texture,
+        MAIN_MARGIN_LEFT as f32,
+        (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
+            ..Default::default()
+        },
+    );
+    //3d
+    set_camera(&Camera3D {
+        render_target: Some( game_params.render_target.clone()),
+        position:  game_params.position,
+        up: up,
+        target: game_params.position +  game_params.front,
+        ..Default::default()
+    });
+    clear_background(LIGHTGRAY);
+    draw_grid(50, 1., BLACK, GRAY);
+    draw_walls(& game_params.mini_map, Some(& game_params.wall_texture), WHITE);
+    //sky
+    let center = vec3(-20.0, 5.0, -20.0);
+    let size = vec2(100.0, 100.0);
+    draw_plane(center, size, Some(& game_params.sky_texture), WHITE);
+    //ground
+    let center = vec3(-50.0, -0.1, -50.0);
+    let size = vec2(100.0, 100.0);
+    draw_plane(center, size, None, BROWN);
+
 }
 
 /*
