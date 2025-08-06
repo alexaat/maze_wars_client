@@ -10,7 +10,8 @@ pub struct Player{
    pub position: Position,
    pub score: u32,
    pub is_active: bool,
-   pub orientation: Orientation
+   //pub orientation: Orientation
+   pub orientation: f32
 }
 impl Player{
    pub fn new() -> Self{
@@ -20,7 +21,7 @@ impl Player{
          position: Position::new(),
          score: 0,
          is_active: true,
-         orientation: Orientation::new(0.0, 0.0, 0.0)
+         orientation: 0.0
       }
    }
 }
@@ -68,17 +69,17 @@ impl MiniMapConfig{
    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Orientation{
-   pub x: f32,
-   pub y: f32,
-   pub z: f32
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct Orientation{
+//    pub x: f32,
+//    pub y: f32,
+//    pub z: f32
+// }
 
-impl Orientation{
-   pub fn new(x: f32, y: f32, z: f32) -> Self{
-      Orientation { x, y, z}
-   }
-}
+// impl Orientation{
+//    pub fn new(x: f32, y: f32, z: f32) -> Self{
+//       Orientation { x, y, z}
+//    }
+// }
 
 

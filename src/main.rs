@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use std::{f64::consts::PI, io, process::exit, usize};
+use std::{io, process::exit, usize};
 
 mod preferences;
 use preferences::*;
@@ -44,7 +44,6 @@ async fn main() {
         MAP_MARGIN_TOP,
         BLACK,
     );
-    //let mut mini_map_position_option: Option<Position> = None;
 
     let render_target = render_target_ex(
         MAIN_WIDTH,
@@ -127,7 +126,9 @@ async fn main() {
         //find projection of front on x_z plane
         let p = front.dot(world_up) * world_up;
         let orientation = (front - p).normalize();
-        player.orientation = Orientation::new(orientation.x, orientation.y, orientation.z);
+
+        //player.orientation =  Orientation::new(orientation.x, orientation.y, orientation.z);
+        player.orientation = orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
         draw_rectangle_lines(
             MAP_MARGIN_LEFT as f32,
             MAP_MARGIN_TOP as f32,
@@ -151,7 +152,7 @@ async fn main() {
             DARKGRAY,
         );
         render_mini_map(&mini_map, &mini_map_config);
-        draw_player_on_mini_map(&player, &mini_map, &mini_map_config, &up_texture, PURPLE);
+        draw_player_on_mini_map(&player, &mini_map, &mini_map_config, &up_texture);
         draw_texture_ex(
             &render_target.texture,
             MAIN_MARGIN_LEFT as f32,
@@ -238,8 +239,7 @@ fn draw_player_on_mini_map(
     player: &Player,
     mini_map: &Vec<Vec<bool>>,
     config: &MiniMapConfig,
-    up_texture: &Texture2D,
-    color: Color,
+    up_texture: &Texture2D
 ) {
     let image_size = f32::min(config.cell_width, config.cell_height);
 
@@ -472,24 +472,6 @@ fn draw_player_on_mini_map(
     */
 
     let size = vec2(image_size, image_size);
-    //find angle
-    //orientation
-    let o = vec3(
-        player.orientation.x,
-        player.orientation.y,
-        player.orientation.z,
-    );
-    //same direction of arrow as on png
-    let n = vec3(0.0, 0.0, -1.0);
-    let cos_theta = o.dot(n);
-    let mut theta = cos_theta.acos();
-    //rotation 360 degrees insted of 180
-    let cross = o.cross(n);
-    if cross.y < 0.0 {
-        theta = 2.0 * PI as f32 - theta;
-    }
-
-    //draw_rectangle(x, z, image_size, image_size, PURPLE);
     draw_texture_ex(
         up_texture,
         x,
@@ -498,7 +480,7 @@ fn draw_player_on_mini_map(
         DrawTextureParams {
             dest_size: Some(size),
             source: None,
-            rotation: theta,
+            rotation: player.orientation,
             flip_x: false,
             flip_y: false,
             pivot: None,

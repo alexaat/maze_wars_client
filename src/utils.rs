@@ -1,5 +1,7 @@
 use std::fs;
 use rand::Rng;
+use macroquad::prelude::{vec3, Vec3};
+use std::{f64::consts::PI};
 
 //read content of the file into string
 pub fn read_file(file_path: &str) -> Result<std::string::String, std::io::Error> {
@@ -66,4 +68,23 @@ pub fn map_to_slice(content: &String) -> Vec<Vec<bool>>{
 
 pub fn generate_up_to(num: usize) -> usize{
     rand::random_range(0..num)
+}
+
+pub fn orientaion_to_degrees(orientation: Vec3) -> f32{
+    //orientation
+    let o = vec3(
+        orientation.x,
+        orientation.y,
+        orientation.z,
+    );
+    //same direction of arrow as on png
+    let n = vec3(0.0, 0.0, -1.0);
+    let cos_theta = o.dot(n);
+    let mut theta = cos_theta.acos();
+    //rotation 360 degrees insted of 180
+    let cross = o.cross(n);
+    if cross.y < 0.0 {
+        theta = 2.0 * PI as f32 - theta;
+    }
+    theta
 }
