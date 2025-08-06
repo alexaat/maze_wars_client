@@ -1,4 +1,4 @@
-use macroquad::{prelude::*, text, texture};
+use macroquad::prelude::*;
 use std::{f64::consts::PI, io, process::exit, usize};
 
 mod preferences;
@@ -68,10 +68,6 @@ async fn main() {
     let mut right = front.cross(world_up).normalize();
 
     let mut position = generate_position(&mini_map);
-    // let mut mini_map_position = Position::build(
-    //     mini_map_config.horizontal_offset as f32 + position.x*mini_map_config.cell_width,
-    //     mini_map_config.vertical_offset as f32 + position.z*mini_map_config.cell_height);
-
     let mut last_mouse_position: Vec2 = mouse_position().into();
 
     set_cursor_grab(true);
@@ -80,7 +76,6 @@ async fn main() {
     loop {
         let delta = get_frame_time();
         let prev_pos = position.clone();
-        //let mut prev_mini_map_pos = Position::build(mini_map_position.x, mini_map_position.z);
 
         if is_key_pressed(KeyCode::Escape) {
             break;
@@ -178,11 +173,6 @@ async fn main() {
         });
         clear_background(LIGHTGRAY);
         draw_grid(50, 1., BLACK, GRAY);
-        //draw_cube_wires(vec3(0.0, 2.0, 0.0), vec3(5., 5., 5.), DARKGREEN);
-        //draw_cube_wires(vec3(0., 1., -6.0), vec3(2., 2., 2.), GREEN);
-        //draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
-        //draw_cube_wires(vec3(2., 1., 2.), vec3(2., 2., 2.), RED);
-
         draw_walls(&mini_map, Some(&texture), WHITE);
 
         //sky
@@ -241,137 +231,7 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    //vec3(x, 1.0, z)
-    vec3(14.0, 1.0, 9.0)
-}
-
-fn draw_player_old(
-    player: &Player,
-    mini_map: &Vec<Vec<bool>>,
-    config: &MiniMapConfig,
-    up_texture: &Texture2D,
-    color: Color,
-) {
-    //let radius = f32::min(config.cell_width, config.cell_height)/2.5;
-    let image_size = f32::min(config.cell_width, config.cell_height);
-    //let mut x = config.horizontal_offset as f32 + player.position.x*config.cell_width + config.cell_width/2.0 - image_size/2.0;
-    //let mut z = config.vertical_offset as f32 + player.position.z*config.cell_height + config.cell_height/2.0 - image_size/2.0;
-
-    let mut x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-    let mut z = config.vertical_offset as f32 + player.position.z * config.cell_height;
-    //draw_circle(x, z, radius, color);
-
-    println!(
-        "player_position x: {}, z: {}",
-        player.position.x, player.position.z
-    );
-    println!("x: {}px, z: {}px", x, z);
-
-    //check top-left horizontal
-    let index_x = f32::floor(player.position.x);
-    let index_z = f32::floor(player.position.z);
-    if mini_map[index_z as usize][index_x as usize] {
-        x = config.horizontal_offset as f32 + (index_x + 1.0) * config.cell_width;
-    }
-
-    // //check bottom-left horizontal
-    // let index_z = f32::ceil(player.position.z);
-    // if mini_map[index_z as usize][index_x as usize]{
-    //     x = config.horizontal_offset as f32 + (index_x + 1.0)*config.cell_width + config.cell_width/2.0 - image_size/2.0;
-    // }
-
-    //check top-left vertical
-    let index_x = f32::floor(player.position.x);
-    let index_z = f32::floor(player.position.z);
-    if mini_map[index_z as usize][index_x as usize] {
-        z = config.vertical_offset as f32
-            + (index_z + 1.0) * config.cell_height
-            + config.cell_height / 2.0
-            - image_size / 2.0;
-    }
-
-    // //check top-right vertical
-    // let index_x = f32::ceil(player.position.x);
-    // let index_z = f32::floor(player.position.z);
-    // if mini_map[index_z as usize][index_x as usize]{
-    //     z = config.vertical_offset as f32 + (index_z + 1.0)*config.cell_height + config.cell_height/2.0 - image_size/2.0;
-    // }
-
-    /*
-    //current cell indecies
-    let current_x =f32::floor(player.position.x + 0.5);
-    let current_z =f32::floor(player.position.z + 0.5);
-    //println!("player_position: x: {}, z:{}", player.position.x, player.position.z);
-    //println!("current position: x: {}, z:{}", current_x, current_z);
-
-    //check z top
-    let index_x = current_x;
-    let index_z = f32::floor(player.position.z);
-    if mini_map[index_z as usize][index_x as usize] {
-        z = config.vertical_offset as f32 + current_z*config.cell_height + config.cell_height/2.0;
-    }
-
-    //z bottom
-    let index_x = current_x;
-    let index_z = f32::ceil(player.position.z);
-    if mini_map[index_z as usize][index_x as usize] {
-         z = config.vertical_offset as f32 + (index_z - 1.0)*config.cell_height + config.cell_height/2.0;
-    }
-
-    //check x left
-    let index_x = f32::floor(player.position.x);
-    let index_z = current_z;
-    if mini_map[index_z as usize][index_x as usize] {
-        x = config.horizontal_offset as f32 + (index_x + 1.0)*config.cell_width + config.cell_width/2.0;
-    }
-
-    //check x right
-    let index_x = f32::floor(player.position.x) + 1.0;
-    let index_z = current_z;
-    if mini_map[index_z as usize][index_x as usize] {
-        x = config.horizontal_offset as f32 + (index_x - 1.0)*config.cell_width + config.cell_width/2.0;
-    }
-    */
-
-    let size = vec2(image_size, image_size);
-    //find angle
-    //orientation
-    let o = vec3(
-        player.orientation.x,
-        player.orientation.y,
-        player.orientation.z,
-    );
-    //same direction of arrow as on png
-    let n = vec3(0.0, 0.0, -1.0);
-    let cos_theta = o.dot(n);
-    let mut theta = cos_theta.acos();
-    //rotation 360 degrees insted of 180
-    let cross = o.cross(n);
-    if cross.y < 0.0 {
-        theta = 2.0 * PI as f32 - theta;
-    }
-    // println!("cos_theta: {}", cos_theta.acos().to_degrees());
-    // println!("theta: {}", theta);
-
-    //draw_plane(center, size, Some(up_texture), color);
-    draw_rectangle(x, z, image_size, image_size, PURPLE);
-    draw_texture_ex(
-        up_texture,
-        x,
-        z,
-        WHITE,
-        DrawTextureParams {
-            dest_size: Some(size),
-            source: None,
-            rotation: theta,
-            flip_x: false,
-            flip_y: false,
-            pivot: None,
-        },
-    );
-
-    //draw_circle(x, z, 2.0, PURPLE);
-    //draw_circle(x + image_size, z + image_size, 2.0, PURPLE);
+    vec3(x, 1.0, z) 
 }
 
 fn draw_player_on_mini_map(
@@ -383,50 +243,27 @@ fn draw_player_on_mini_map(
 ) {
     let image_size = f32::min(config.cell_width, config.cell_height);
 
-    // let delta_x = player.position.x - prev_pos.x;
-    // let delta_z = player.position.z - prev_pos.z;
-
-    //println!("prev_mini_map_position: x: {}, y: {}", prev_mini_map_position.x, prev_mini_map_position.z);
-
-    //let mut x = config.horizontal_offset as f32 + player.position.x*config.cell_width;
-    //let mut z = config.vertical_offset as f32 + player.position.z*config.cell_height;
-
     //current position
     let index_x = f32::floor(player.position.x + 0.5);
     let index_z = f32::floor(player.position.z + 0.5);
 
-    let mut x = config.horizontal_offset as f32 + index_x * config.cell_width;
-    let mut z = config.vertical_offset as f32 + index_z * config.cell_height;
-
-    // //horizontal tunnel + horizontal pockets
-    // if mini_map[index_z as usize + 1][index_x as usize] &&
-    //    mini_map[index_z as usize - 1][index_x as usize] &&
-    //    !mini_map[index_z as usize][index_x as usize - 1] &&
-    //    !mini_map[index_z as usize][index_x as usize + 1]
-    //    {
-    //     println!("moving horizontal");
-    //     x = config.horizontal_offset as f32 + player.position.x*config.cell_width;
-    //     z = config.vertical_offset as f32 + index_z*config.cell_height;
-    // }
+    let mut x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+    let mut z = config.vertical_offset as f32 + player.position.z * config.cell_height;
 
     //horizontal tunnel + horizontal pockets
     if mini_map[index_z as usize + 1][index_x as usize]
         && mini_map[index_z as usize - 1][index_x as usize]
-    {
-        println!("moving horizontal");
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+    {       
         z = config.vertical_offset as f32 + index_z * config.cell_height;
         //pocket on the right
-        if mini_map[index_z as usize][index_x as usize + 1] {
-            println!("right pocket");
+        if mini_map[index_z as usize][index_x as usize + 1] {           
             let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
             if x > max_x {
                 x = max_x
             }
         }
         //pocket on the left
-        if mini_map[index_z as usize][index_x as usize - 1] {
-            println!("left pocket");
+        if mini_map[index_z as usize][index_x as usize - 1] {       
             let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
             if x < min_x {
                 x = min_x
@@ -434,33 +271,20 @@ fn draw_player_on_mini_map(
         }
     }
 
-    //vertical tunnel
-    // if mini_map[index_z as usize][index_x as usize + 1]
-    //     && mini_map[index_z as usize][index_x as usize - 1]
-    //     && !mini_map[index_z as usize + 1][index_x as usize]
-    //     && !mini_map[index_z as usize - 1][index_x as usize]
-    // {
-    //     println!("moving vertical");
-    //     x = config.horizontal_offset as f32 + index_x * config.cell_width;
-    //     z = config.vertical_offset as f32 + player.position.z * config.cell_height;
-    // }
-
     //vertical tunnel + vertical pocket
     if mini_map[index_z as usize][index_x as usize + 1]
         && mini_map[index_z as usize][index_x as usize - 1]
-    {
-        println!("moving vertical");
+    {       
         x = config.horizontal_offset as f32 + index_x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
-        if mini_map[index_z as usize - 1][index_x as usize] {
-            println!("pocket up");
+        //pocket up
+        if mini_map[index_z as usize - 1][index_x as usize] {     
             let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
             if z < min_z {
                 z = min_z;
             }
         }
-        if mini_map[index_z as usize + 1][index_x as usize] {
-            println!("pocket down");
+        //pocket down
+        if mini_map[index_z as usize + 1][index_x as usize] {           
             let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
             if z > max_z {
                 z = max_z;
@@ -480,12 +304,9 @@ fn draw_player_on_mini_map(
         && mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize + 1]
         && !mini_map[index_z as usize + 1][index_x as usize]
-    {
-        println!("top-left corner");
+    {      
         let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
         let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         if x < min_x {
             x = min_x;
         }
@@ -507,11 +328,8 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize][index_x as usize - 1]
         && !mini_map[index_z as usize + 1][index_x as usize]
     {
-        println!("top-right corner");
         let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         if x > max_x {
             x = max_x;
         }
@@ -533,9 +351,6 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize - 1]
     {
-        println!("bottom right corner");
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
         if x > max_x {
@@ -560,9 +375,6 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize + 1]
     {
-        println!("bottom left corner");
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
         if x < min_x {
@@ -587,10 +399,7 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize][index_x as usize + 1]
         && !mini_map[index_z as usize + 1][index_x as usize]
     {
-        println!("t-junction");
         let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         if z < min_z {
             z = min_z;
         }
@@ -609,10 +418,8 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize + 1]
     {
-        println!("right t-junction");
+
         let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         if x < min_x {
             x = min_x;
         }
@@ -631,9 +438,6 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize + 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize - 1]
     {
-        println!("left t-junction");
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         if x > max_x {
             x = max_x;
@@ -654,9 +458,6 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize][index_x as usize + 1]
         && !mini_map[index_z as usize - 1][index_x as usize]
     {
-        println!("up t-junction");
-        x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-        z = config.vertical_offset as f32 + player.position.z * config.cell_height;
         let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
         if z > max_z {
             z = max_z;
@@ -669,50 +470,6 @@ fn draw_player_on_mini_map(
           ↗|
         ---
     */
-
-    // if mini_map[index_z as usize - 1][index_x as usize] &&
-    //    mini_map[index_z as usize][index_x as usize + 1] &&
-    //    mini_map[index_z as usize + 1][index_x as usize] &&
-    //    !mini_map[index_z as usize][index_x as usize - 1]
-    //    {
-    //     println!("right pocket");
-    //     let max_x = config.horizontal_offset as f32 + index_x*config.cell_width;
-    //     x = config.horizontal_offset as f32 + player.position.x*config.cell_width;
-    //     z = config.vertical_offset as f32 + index_z*config.cell_height;
-    //     if x > max_x {
-    //        x = max_x;
-    //     }
-    // }
-
-    //General case
-    //let index_x = f32::floor(player.position.x + 0.5);
-    //let index_z = f32::floor(player.position.z + 0.5);
-    // let min_x = config.horizontal_offset as f32 + index_x*config.cell_width;
-    // let min_z = config.horizontal_offset as f32 + index_z*config.cell_height;
-    // x = config.horizontal_offset as f32 + player.position.x*config.cell_width;
-    // z = config.vertical_offset as f32 + player.position.z*config.cell_height;
-    // if !mini_map[index_z as usize][index_x as usize + 1]{
-    //     if x > min_x {
-    //         x = min_x;
-    //     }
-    // }
-    // if !mini_map[index_z as usize][index_x as usize - 1]{
-    //     if x < min_x {
-    //         x = min_x;
-    //     }
-    // }
-    // if !mini_map[index_z as usize - 1][index_x as usize]{
-    //     if z < min_z {
-    //         z = min_z;
-    //     }
-    // }
-    // if !mini_map[index_z as usize + 1][index_x as usize]{
-    //     if z > min_z {
-    //         z = min_z;
-    //     }
-    // }
-
-    //println!("x: {}, z: {}", x,z);
 
     let size = vec2(image_size, image_size);
     //find angle
@@ -761,26 +518,7 @@ fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Col
         }
     }
 }
-fn draw_wall_along_x(position: &Vec3, len: u32, texture: &Texture2D) {
-    let size = vec3(len as f32, 1.0, 1.0);
-    let mut pos = *position;
-    pos.x += 0.5 * (len as f32 - 1.0);
-    if pos.x < 0.0 {
-        pos.x = 0.0;
-    }
-    draw_cube(pos, size, Some(&texture), WHITE);
-    //draw_cube_wires(pos, size, BLACK);
-}
-fn draw_wall_along_z(position: &Vec3, len: u32, texture: &Texture2D) {
-    let size = vec3(1.0, 1.0, len as f32);
-    let mut pos = *position;
-    pos.z += 0.5 * (len as f32 - 1.0);
-    if pos.z < 0.0 {
-        pos.z = 0.0;
-    }
-    draw_cube(pos, size, Some(&texture), WHITE);
-    //draw_cube_wires(pos, size, BLACK);
-}
+
 fn handle_wall_collisions(
     mini_map: &Vec<Vec<bool>>,
     prev_pos: Vec3,
