@@ -2,6 +2,7 @@ use macroquad::prelude::*;
 use std::collections::HashMap;
 use std::{io, process::exit, usize};
 use serde_json::from_str;
+use std::sync::Mutex;
 
 mod preferences;
 use preferences::*;
@@ -37,9 +38,10 @@ async fn main() {
     let mut game_params = init_game_params();
     set_cursor_grab(true);
     show_mouse(false);
-    let mut enemies: HashMap<String, Player> = HashMap::new();
+    //let mut enemies: HashMap<String, Player> = HashMap::new();
+    let enemy: Option<Player> = None;
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
-    start_server_listener(Arc::clone(&socket), &mut enemies);
+    start_server_listener(Arc::clone(&socket), Arc::new(Mutex::new(enemy)));
     loop {
 
         match status {
@@ -49,7 +51,7 @@ async fn main() {
             Status::EnterName =>{
                handle_name_input(&mut status, &mut player, &server_addr);
             },
-            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket),
+            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket, &enemy),
         }
         next_frame().await;
     }
@@ -520,7 +522,7 @@ fn handle_name_input(
         exit(0);
     }
 }
-fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>){
+fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>, enemy: &Option<Player>){
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
     if is_key_pressed(KeyCode::Escape) {
@@ -622,14 +624,19 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     let size = vec2(100.0, 100.0);
     draw_plane(center, size, None, BROWN);
 
+    //enemies
+    if let Some(e) = enemy{
+        draw_enemy(e);
+    } 
+
     if let Ok(message_to_server) = serde_json::to_string(player){
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     } 
 
 }
-fn start_server_listener(socket: Arc<UdpSocket>, enemies: &mut HashMap<String, Player>){
+fn start_server_listener(socket: Arc<UdpSocket>, enemy: Arc<Mutex<Option<Player>>>){
     //Server response listener
-     thread::spawn(move || loop {
+     thread::spawn(move | | loop {
         let mut buffer = [0u8; 1024];
         if let Ok((size, src)) = socket.recv_from(&mut buffer){
             // println!(
@@ -638,17 +645,22 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemies: &mut HashMap<String, P
             //     src,
             //     std::str::from_utf8(&buffer[..size]).unwrap_or("<invalid UTF-8>")
             // );
-            if let Ok(enemy) = std::str::from_utf8(&buffer[..size]){
-                if let Ok(enemy) = from_str::<Player>(enemy){
-                    draw_enemy(enemy);
+            if let Ok(enemy_str) = std::str::from_utf8(&buffer[..size]){
+                if let Ok(e) = from_str::<Player>(enemy_str){
+                    let mut enemy_locked = enemy.lock().unwrap();
+                    *enemy_locked = Some(e);
+                    //*enemy = Some(e);                
                 }
+            }else {
+                let mut enemy_locked = enemy.lock().unwrap();
+                *enemy_locked = None;
             }
 
         }
      });
 }
-fn draw_enemy(enemy: Player){
-        draw_text(
+fn draw_enemy(enemy: &Player){
+    draw_text(
         &enemy.name,
         NAME_MARGIN_LEFT as f32,
         NAME_MARGIN_TOP as f32 + 50.0,
