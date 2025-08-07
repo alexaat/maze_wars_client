@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use macroquad::prelude::{Texture2D, Vec3, Vec2};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Player{
    pub id: String,
    pub name: String,
@@ -28,7 +28,7 @@ impl Player{
    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Position{
    pub x: f32,
    pub z: f32

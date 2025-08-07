@@ -39,10 +39,15 @@ async fn main() {
     set_cursor_grab(true);
     show_mouse(false);
     //let mut enemies: HashMap<String, Player> = HashMap::new();
-    let enemy: Option<Player> = None;
+    let enemy: Arc<Mutex<Option<Player>>> = Arc::new(Mutex::new(None));
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
-    start_server_listener(Arc::clone(&socket), Arc::new(Mutex::new(enemy)));
+ 
+    start_server_listener(Arc::clone(&socket), Arc::clone(&enemy));
     loop {
+        let enemy = Arc::clone(&enemy);
+        // if let Ok(received) = rx.recv(){
+        //     enemy = received;
+        // }
 
         match status {
             Status::EnterIP => {
@@ -51,7 +56,7 @@ async fn main() {
             Status::EnterName =>{
                handle_name_input(&mut status, &mut player, &server_addr);
             },
-            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket, &enemy),
+            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket, enemy),
         }
         next_frame().await;
     }
@@ -522,7 +527,7 @@ fn handle_name_input(
         exit(0);
     }
 }
-fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>, enemy: &Option<Player>){
+fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>, enemy: Arc<Mutex<Option<Player>>>){
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
     if is_key_pressed(KeyCode::Escape) {
@@ -625,10 +630,13 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     draw_plane(center, size, None, BROWN);
 
     //enemies
-    if let Some(e) = enemy{
-        draw_enemy(e);
-    } 
-
+    // if let Some(e) = *enemy.lock(){
+    //     draw_enemy(e);
+    // } 
+    if let Some(enemy) = enemy.lock().unwrap().clone(){
+        draw_enemy(&enemy);
+    }
+    
     if let Ok(message_to_server) = serde_json::to_string(player){
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     } 
@@ -649,11 +657,17 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemy: Arc<Mutex<Option<Player>
                 if let Ok(e) = from_str::<Player>(enemy_str){
                     let mut enemy_locked = enemy.lock().unwrap();
                     *enemy_locked = Some(e);
-                    //*enemy = Some(e);                
+                   // let mut enemy_locked = enemy.lock().unwrap();
+                   // *enemy_locked = Some(e);
+                    //*enemy = Some(e);   
+                    //let _ = tx.send(Some(e));             
                 }
             }else {
                 let mut enemy_locked = enemy.lock().unwrap();
                 *enemy_locked = None;
+                //let mut enemy_locked = enemy.lock().unwrap();
+                //*enemy_locked = None;
+                //let _ = tx.send(None);
             }
 
         }
