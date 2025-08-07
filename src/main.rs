@@ -13,6 +13,8 @@ use utils::*;
 use std::net::UdpSocket;
 use std::sync::Arc;
 
+use std::thread;
+
 fn conf() -> Conf {
     Conf {
         window_title: String::from("FPS-CLIENT"),
@@ -25,6 +27,7 @@ fn conf() -> Conf {
 #[macroquad::main(conf)]
 async fn main() {
     let mut player = Player::new();
+    player.current_map = String::from("map_one");
     let mut status = Status::EnterIP;
     request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
     let mut server_addr = String::new();
@@ -33,6 +36,7 @@ async fn main() {
     set_cursor_grab(true);
     show_mouse(false);
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
+    start_server_listener(Arc::clone(&socket));
     loop {
 
         match status {
@@ -518,9 +522,9 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     let prev_pos = game_params.position.clone();
     if is_key_pressed(KeyCode::Escape) {
        player.is_active = false;
-       let message_to_server = serde_json::to_string(player).unwrap();
-       //println!("{:?}", message_to_server);
-       let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+       if let Ok(message_to_server) = serde_json::to_string(player){
+          let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+       }     
        exit(0);
     }
     if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
@@ -616,10 +620,24 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     draw_plane(center, size, None, BROWN);
 
 
-    let message_to_server = serde_json::to_string(player).unwrap();
-    //println!("{:?}", message_to_server);
-    let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+    if let Ok(message_to_server) = serde_json::to_string(player){
+        let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+    }  
 
+}
+fn start_server_listener(socket: Arc<UdpSocket>){
+    //Server response listener
+     thread::spawn(move || loop {
+        let mut buffer = [0u8; 1024];
+        if let Ok((size, src)) = socket.recv_from(&mut buffer){
+            println!(
+                "Received {} bytes from {}: {}",
+                size,
+                src,
+                std::str::from_utf8(&buffer[..size]).unwrap_or("<invalid UTF-8>")
+            );
+        }
+     });
 }
 
 /*
