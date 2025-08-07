@@ -10,6 +10,9 @@ use models::*;
 mod utils;
 use utils::*;
 
+use std::net::UdpSocket;
+use std::sync::Arc;
+
 fn conf() -> Conf {
     Conf {
         window_title: String::from("FPS-CLIENT"),
@@ -29,6 +32,7 @@ async fn main() {
     let mut game_params = init_game_params();
     set_cursor_grab(true);
     show_mouse(false);
+    let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
     loop {
 
         match status {
@@ -38,13 +42,13 @@ async fn main() {
             Status::EnterName =>{
                handle_name_input(&mut status, &mut player, &server_addr);
             },
-            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params),
+            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket),
         }
         next_frame().await;
     }
 }
 fn init_game_params() -> GameParams{
-        let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
+    let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
     let up_texture = Texture2D::from_file_with_format(include_bytes!("../assets/up_180.png"), None);
     let mini_map = match parse_map("assets/map_one.txt") {
@@ -509,10 +513,14 @@ fn handle_name_input(
         exit(0);
     }
 }
-fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams){
+fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>){
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
     if is_key_pressed(KeyCode::Escape) {
+       player.is_active = false;
+       let message_to_server = serde_json::to_string(player).unwrap();
+       //println!("{:?}", message_to_server);
+       let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
        exit(0);
     }
     if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
@@ -528,7 +536,7 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
          game_params.position +=  game_params.right * MOVE_SPEED;
     }
     let gap: f32 = 0.05;
-    handle_wall_collisions(& game_params.mini_map, prev_pos, &mut  game_params.position, gap);
+    handle_wall_collisions(&game_params.mini_map, prev_pos, &mut  game_params.position, gap);
     let mouse_position: Vec2 = mouse_position().into();
     let mouse_delta = mouse_position -  game_params.last_mouse_position;
     game_params.last_mouse_position = mouse_position;
@@ -548,7 +556,7 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     //2d
     set_default_camera();
     clear_background(WHITE);
-    player.position = Position::build( game_params.position.x,  game_params.position.z);
+    player.position = Position::build(game_params.position.x,  game_params.position.z);
     //find projection of front on x_z plane
     let p =  game_params.front.dot(game_params.world_up) *  game_params.world_up;
     let orientation = ( game_params.front - p).normalize();
@@ -606,6 +614,11 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     let center = vec3(-50.0, -0.1, -50.0);
     let size = vec2(100.0, 100.0);
     draw_plane(center, size, None, BROWN);
+
+
+    let message_to_server = serde_json::to_string(player).unwrap();
+    //println!("{:?}", message_to_server);
+    let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
 
 }
 
