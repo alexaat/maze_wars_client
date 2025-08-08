@@ -406,6 +406,238 @@ fn draw_player_on_mini_map(
         },
     );
 }
+fn draw_enemy_on_minimap(player: &Player, mini_map: &Vec<Vec<bool>>, config: &MiniMapConfig, color: Color){
+    let image_size = f32::min(config.cell_width, config.cell_height);
+
+    //current position
+    let index_x = f32::floor(player.position.x + 0.5);
+    let index_z = f32::floor(player.position.z + 0.5);
+
+    let mut x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
+    let mut z = config.vertical_offset as f32 + player.position.z * config.cell_height;
+
+    //horizontal tunnel + horizontal pockets
+    if mini_map[index_z as usize + 1][index_x as usize]
+        && mini_map[index_z as usize - 1][index_x as usize]
+    {       
+        z = config.vertical_offset as f32 + index_z * config.cell_height;
+        //pocket on the right
+        if mini_map[index_z as usize][index_x as usize + 1] {           
+            let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+            if x > max_x {
+                x = max_x
+            }
+        }
+        //pocket on the left
+        if mini_map[index_z as usize][index_x as usize - 1] {       
+            let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+            if x < min_x {
+                x = min_x
+            }
+        }
+    }
+
+    //vertical tunnel + vertical pocket
+    if mini_map[index_z as usize][index_x as usize + 1]
+        && mini_map[index_z as usize][index_x as usize - 1]
+    {       
+        x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        //pocket up
+        if mini_map[index_z as usize - 1][index_x as usize] {     
+            let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+            if z < min_z {
+                z = min_z;
+            }
+        }
+        //pocket down
+        if mini_map[index_z as usize + 1][index_x as usize] {           
+            let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+            if z > max_z {
+                z = max_z;
+            }
+        }
+    }
+
+    /*
+    top left corner
+
+      ____
+     | ↗
+     |
+
+    */
+    if mini_map[index_z as usize][index_x as usize - 1]
+        && mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize + 1][index_x as usize]
+    {      
+        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        if x < min_x {
+            x = min_x;
+        }
+        if z < min_z {
+            z = min_z;
+        }
+    }
+
+    /*
+    top right corner
+    ____
+       ↗|
+        |
+
+    */
+
+    if mini_map[index_z as usize - 1][index_x as usize]
+        && mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+        && !mini_map[index_z as usize + 1][index_x as usize]
+    {
+        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if x > max_x {
+            x = max_x;
+        }
+        if z < min_z {
+            z = min_z;
+        }
+    }
+
+    /*
+        bottom right corner
+
+            |
+           ↗|
+        ----
+
+    */
+    if mini_map[index_z as usize][index_x as usize + 1]
+        && mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+    {
+        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if x > max_x {
+            x = max_x
+        }
+        if z > max_z {
+            z = max_z
+        }
+    }
+
+    /*
+       bottom left corner
+
+       |
+       |↗
+       -----
+
+    */
+
+    if mini_map[index_z as usize][index_x as usize - 1]
+        && mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+    {
+        let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if x < min_x {
+            x = min_x
+        }
+        if z > max_z {
+            z = max_z
+        }
+    }
+
+    /*
+    t-junction
+
+    __________
+    ___  ↗ ___
+       |  |
+       |  |
+
+    */
+    if mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize + 1][index_x as usize]
+    {
+        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if z < min_z {
+            z = min_z;
+        }
+    }
+
+    /*
+     right t-junction
+
+    |  |__
+    | ↗ __
+    |  |
+
+    */
+    if mini_map[index_z as usize][index_x as usize - 1]
+        && !mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+    {
+
+        let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        if x < min_x {
+            x = min_x;
+        }
+    }
+
+    /*
+        left t-junction
+
+         ____|  |
+         ____  ↗|
+             |  |
+
+    */
+    if mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+        && !mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+    {
+        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        if x > max_x {
+            x = max_x;
+        }
+    }
+
+    /*
+       up t-junction
+
+         ___|  |___
+              ↗
+         -----------
+
+    */
+
+    if mini_map[index_z as usize + 1][index_x as usize]
+        && !mini_map[index_z as usize][index_x as usize - 1]
+        && !mini_map[index_z as usize][index_x as usize + 1]
+        && !mini_map[index_z as usize - 1][index_x as usize]
+    {
+        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if z > max_z {
+            z = max_z;
+        }
+    }
+
+    /*
+        right pocket
+        ___
+          ↗|
+        ---
+    */
+  draw_circle(x + image_size/2.0, z+image_size/2.0, image_size/2.5, color);
+}
 fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color) {
     for (z, line) in mini_map.into_iter().enumerate() {
         for (x, cell) in line.iter().enumerate() {
@@ -590,7 +822,7 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
         20.0,
         DARKGRAY,
     );
-    render_mini_map(& game_params.mini_map, & game_params.mini_map_config);
+    render_mini_map(& game_params.mini_map, &game_params.mini_map_config);
     draw_player_on_mini_map(&player, & game_params.mini_map, & game_params.mini_map_config, & game_params.up_texture);
     draw_texture_ex(
         & game_params.render_target.texture,
@@ -605,7 +837,7 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     //enemies
     if let Ok(enemies_result) = enemies.lock(){
         if let Some(enemies) = enemies_result.clone(){
-            draw_enemies(&enemies);        
+            draw_enemies_on_minimap(&enemies, &game_params);        
         }
     }
 
@@ -628,6 +860,15 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     let center = vec3(-50.0, -0.1, -50.0);
     let size = vec2(100.0, 100.0);
     draw_plane(center, size, None, BROWN);
+
+    //enemies
+    if let Ok(enemies_result) = enemies.lock(){
+        if let Some(enemies) = enemies_result.clone(){
+            for enemy in enemies{
+                draw_sphere(vec3(enemy.position.x, 1.0, enemy.position.z), 1.0, None, PURPLE);
+            }        
+        }
+    }
 
     if let Ok(message_to_server) = serde_json::to_string(player){
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
@@ -669,7 +910,7 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<P
         }
      });
 }
-fn draw_enemies(enemies: &Vec<Player>){
+fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
 
     let mut top_offset = NAME_MARGIN_TOP as f32;
 
@@ -689,7 +930,14 @@ fn draw_enemies(enemies: &Vec<Player>){
                 20.0,
                 DARKGRAY,
             );  
-            top_offset += 35.0;         
+            top_offset += 35.0;
+
+            draw_enemy_on_minimap(&enemy, &game_params.mini_map, &game_params.mini_map_config, RED);
+
+            //draw enemy in 3d
+
+
+
         }  
     } 
 
