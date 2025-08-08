@@ -74,6 +74,7 @@ pub struct GameParams{
    pub wall_texture: Texture2D,
    pub sky_texture: Texture2D,
    pub up_texture: Texture2D,
+   pub eye_texture: Texture2D,
    pub mini_map_config: MiniMapConfig,
    pub render_target: RenderTarget,
    pub yaw: f32, 

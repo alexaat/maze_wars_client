@@ -56,7 +56,8 @@ async fn main() {
 fn init_game_params() -> GameParams{
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
-    let up_texture = Texture2D::from_file_with_format(include_bytes!("../assets/up_180.png"), None);
+    let up_texture = Texture2D::from_file_with_format(include_bytes!("../assets/arrowSmall.png"), None);
+    let eye_texture = Texture2D::from_file_with_format(include_bytes!("../assets/eyeTextureBlack.png"), None);
     let mini_map = match parse_map("assets/map_one.txt") {
         Ok(map) => map,
         Err(error) => {
@@ -96,7 +97,8 @@ fn init_game_params() -> GameParams{
     GameParams{
         wall_texture,
         sky_texture,
-        up_texture,        
+        up_texture,
+        eye_texture,        
         mini_map_config,
         render_target,
         yaw, 
@@ -151,7 +153,7 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    vec3(x, 1.0, z) 
+    vec3(x, 1.0, z)   
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -867,11 +869,12 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
         if let Some(enemies) = enemies_result.clone(){
             for enemy in enemies{
                 if enemy.is_active{
-                    draw_sphere(vec3(enemy.position.x, 1.0, enemy.position.z), 0.05, None, PURPLE);
+                    //draw_sphere(vec3(1.0, 1.0, 1.0), 0.1, Some(&game_params.eye_texture), WHITE);
+                    draw_sphere(vec3(enemy.position.x, 1.0, enemy.position.z), 0.05, Some(&game_params.eye_texture), WHITE);
                 }               
             }        
         }
-    }
+    } 
 
     if let Ok(message_to_server) = serde_json::to_string(player){
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
@@ -942,7 +945,6 @@ fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
         }       
     }   
 }
-
 
 /*
 use macroquad::prelude::*;
