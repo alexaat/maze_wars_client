@@ -834,12 +834,14 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
             ..Default::default()
         },
     );
-    //enemies
+
+    //enemies  
     if let Ok(enemies_result) = enemies.lock(){
         if let Some(enemies) = enemies_result.clone(){
-            draw_enemies_on_minimap(&enemies, &game_params);        
+            draw_enemy_names_and_scores(&enemies);
+            draw_enemies_on_minimap(&enemies, &game_params);         
         }
-    }
+    } 
 
     //3d
     set_camera(&Camera3D {
@@ -912,10 +914,8 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<P
         }
      });
 }
-fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
-
+fn draw_enemy_names_and_scores(enemies: &Vec<Player>){
     let mut top_offset = NAME_MARGIN_TOP as f32 + 35.0;
-
     for enemy in enemies {
         if enemy.is_active{
             draw_text(
@@ -932,20 +932,16 @@ fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
                 20.0,
                 DARKGRAY,
             );  
-            top_offset += 35.0;
-
-            draw_enemy_on_minimap(&enemy, &game_params.mini_map, &game_params.mini_map_config, RED);
-
-            //draw enemy in 3d
-
-
-
+            top_offset += 35.0;          
         }  
     } 
-
-
-
 }
+fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
+    for enemy in enemies{
+        draw_enemy_on_minimap(&enemy, &game_params.mini_map, &game_params.mini_map_config, RED);
+    }   
+}
+
 
 /*
 use macroquad::prelude::*;
