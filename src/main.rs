@@ -865,7 +865,9 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     if let Ok(enemies_result) = enemies.lock(){
         if let Some(enemies) = enemies_result.clone(){
             for enemy in enemies{
-                draw_sphere(vec3(enemy.position.x, 1.0, enemy.position.z), 0.2, None, PURPLE);
+                if enemy.is_active{
+                    draw_sphere(vec3(enemy.position.x, 1.0, enemy.position.z), 0.05, None, PURPLE);
+                }               
             }        
         }
     }
