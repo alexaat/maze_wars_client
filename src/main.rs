@@ -914,7 +914,7 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<P
 }
 fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
 
-    let mut top_offset = NAME_MARGIN_TOP as f32;
+    let mut top_offset = NAME_MARGIN_TOP as f32 + 35.0;
 
     for enemy in enemies {
         if enemy.is_active{
