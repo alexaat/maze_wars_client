@@ -1,5 +1,4 @@
 use macroquad::prelude::*;
-use std::collections::HashMap;
 use std::{io, process::exit, usize};
 use serde_json::from_str;
 use std::sync::Mutex;
@@ -39,9 +38,9 @@ async fn main() {
     set_cursor_grab(true);
     show_mouse(false);
     //let mut enemies: HashMap<String, Player> = HashMap::new();
-    let enemy: Arc<Mutex<Option<Player>>> = Arc::new(Mutex::new(None));
+    let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap()); 
-    start_server_listener(Arc::clone(&socket), Arc::clone(&enemy));
+    start_server_listener(Arc::clone(&socket), Arc::clone(&enemies));
     loop {
         match status {
             Status::EnterIP => {
@@ -50,7 +49,7 @@ async fn main() {
             Status::EnterName =>{
                handle_name_input(&mut status, &mut player, &server_addr);
             },
-            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket,  Arc::clone(&enemy)),
+            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket,  Arc::clone(&enemies)),
         }
         next_frame().await;
     }
@@ -521,7 +520,7 @@ fn handle_name_input(
         exit(0);
     }
 }
-fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>, enemy: Arc<Mutex<Option<Player>>>){
+fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<Player>>>>){
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
     if is_key_pressed(KeyCode::Escape) {
@@ -604,11 +603,9 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
         },
     );
     //enemies
-    if let Ok(enemy_result) = enemy.lock(){
-        if let Some(enemy) = enemy_result.clone(){
-            if enemy.is_active{
-                draw_enemy(&enemy);
-            }           
+    if let Ok(enemies_result) = enemies.lock(){
+        if let Some(enemies) = enemies_result.clone(){
+            draw_enemies(&enemies);        
         }
     }
 
@@ -637,54 +634,67 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     } 
 
 }
-fn start_server_listener(socket: Arc<UdpSocket>, enemy: Arc<Mutex<Option<Player>>>){
+fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<Player>>>>){
     //Server response listener
      thread::spawn(move | | loop {
         let mut buffer = [0u8; 1024];
-        if let Ok((size, src)) = socket.recv_from(&mut buffer){
+        if let Ok((size, _)) = socket.recv_from(&mut buffer){
             // println!(
             //     "Received {} bytes from {}: {}",
             //     size,
             //     src,
             //     std::str::from_utf8(&buffer[..size]).unwrap_or("<invalid UTF-8>")
             // );
-            if let Ok(enemy_str) = std::str::from_utf8(&buffer[..size]){
-                if let Ok(e) = from_str::<Player>(enemy_str){
-                    //println!("new enemy: {:?}", e);
-                    let mut enemy_locked = enemy.lock().unwrap();
-                    *enemy_locked = Some(e);                    
-                   // let mut enemy_locked = enemy.lock().unwrap();
-                   // *enemy_locked = Some(e);
-                    //*enemy = Some(e);   
-                    //let _ = tx.send(Some(e));             
+            if let Ok(enemies_str) = std::str::from_utf8(&buffer[..size]){                
+                let enemies_result = from_str::<Vec<Player>>(enemies_str);
+                match enemies_result {
+                    Ok(es) => {   
+                        let enemies_locked_result =  enemies.lock();
+                        match enemies_locked_result{
+                            Ok(mut enemies_locked) => *enemies_locked = Some(es),
+                            Err(e) => println!("Error while locking: {e}")
+                        }
+                    },
+                    Err(e) => println!("Error Parsing: {e}")                    
                 }
             }else {
-                let mut enemy_locked = enemy.lock().unwrap();
-                println!("no enemy...",);
-                *enemy_locked = None;
-                //let mut enemy_locked = enemy.lock().unwrap();
-                //*enemy_locked = None;
-                //let _ = tx.send(None);
+                println!("no enemies...",);
+                let enemies_locked_result =  enemies.lock();
+                match enemies_locked_result{
+                    Ok(mut enemies_locked) => *enemies_locked = None,
+                    Err(e) => println!("Error while locking: {e}")
+                }
             }
 
         }
      });
 }
-fn draw_enemy(enemy: &Player){
-    draw_text(
-        &enemy.name,
-        NAME_MARGIN_LEFT as f32,
-        NAME_MARGIN_TOP as f32 + 50.0,
-        20.0,
-        DARKGRAY,
-    );
-    draw_text(
-        format!("{}", enemy.score).as_str(),
-        SCORE_MARGIN_LEFT as f32,
-        NAME_MARGIN_TOP as f32 + 50.0,
-        20.0,
-        DARKGRAY,
-    );
+fn draw_enemies(enemies: &Vec<Player>){
+
+    let mut top_offset = NAME_MARGIN_TOP as f32;
+
+    for enemy in enemies {
+        if enemy.is_active{
+            draw_text(
+                &enemy.name,
+                NAME_MARGIN_LEFT as f32,
+                top_offset,
+                20.0,
+                DARKGRAY,
+            );
+            draw_text(
+                format!("{}", enemy.score).as_str(),
+                SCORE_MARGIN_LEFT as f32,
+                top_offset,
+                20.0,
+                DARKGRAY,
+            );  
+            top_offset += 35.0;         
+        }  
+    } 
+
+
+
 }
 
 /*
