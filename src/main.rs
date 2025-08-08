@@ -945,7 +945,6 @@ fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
         }       
     }   
 }
-
 /*
 use macroquad::prelude::*;
 use std::net::UdpSocket;
