@@ -56,8 +56,8 @@ async fn main() {
 fn init_game_params() -> GameParams{
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
-    let up_texture = Texture2D::from_file_with_format(include_bytes!("../assets/arrowSmall.png"), None);
-    let eye_texture = Texture2D::from_file_with_format(include_bytes!("../assets/eyeTextureBlack.png"), None);
+    let up_texture = Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
+    let eye_texture = Texture2D::from_file_with_format(include_bytes!("../assets/eye_texture_black.png"), None);
     let mini_map = match parse_map("assets/map_one.txt") {
         Ok(map) => map,
         Err(error) => {
