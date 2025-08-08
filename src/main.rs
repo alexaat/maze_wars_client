@@ -37,7 +37,6 @@ async fn main() {
     let mut game_params = init_game_params();
     set_cursor_grab(true);
     show_mouse(false);
-    //let mut enemies: HashMap<String, Player> = HashMap::new();
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap()); 
     start_server_listener(Arc::clone(&socket), Arc::clone(&enemies));
@@ -900,7 +899,7 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<P
                             Err(e) => println!("Error while locking: {e}")
                         }
                     },
-                    Err(e) => println!("Error Parsing: {e}")                    
+                    Err(e) => println!("line 902 Error Parsing: {e}")                    
                 }
             }else {
                 println!("no enemies...",);
