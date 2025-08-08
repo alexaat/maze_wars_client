@@ -938,7 +938,9 @@ fn draw_enemy_names_and_scores(enemies: &Vec<Player>){
 }
 fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
     for enemy in enemies{
-        draw_enemy_on_minimap(&enemy, &game_params.mini_map, &game_params.mini_map_config, RED);
+        if enemy.is_active{
+            draw_enemy_on_minimap(&enemy, &game_params.mini_map, &game_params.mini_map_config, RED);
+        }       
     }   
 }
 
