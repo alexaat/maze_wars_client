@@ -56,8 +56,11 @@ async fn main() {
 fn init_game_params() -> GameParams{
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
-    let up_texture = Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
-    let eye_texture = Texture2D::from_file_with_format(include_bytes!("../assets/eye_texture_black.png"), None);
+    let arrow_texture = Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
+    let eye_texture_background = Texture2D::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None);
+    let eye_texture_top = Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None).unwrap();
+    let eye_texture_bottom = Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None).unwrap();
+    
     let mini_map = match parse_map("assets/map_one.txt") {
         Ok(map) => map,
         Err(error) => {
@@ -97,8 +100,10 @@ fn init_game_params() -> GameParams{
     GameParams{
         wall_texture,
         sky_texture,
-        up_texture,
-        eye_texture,        
+        arrow_texture,
+        eye_texture_background,
+        eye_texture_top,
+        eye_texture_bottom,        
         mini_map_config,
         render_target,
         yaw, 
@@ -153,7 +158,7 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    vec3(x, 1.0, z)   
+    vec3(x, 1.0, z)
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -824,7 +829,7 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
         DARKGRAY,
     );
     render_mini_map(& game_params.mini_map, &game_params.mini_map_config);
-    draw_player_on_mini_map(&player, & game_params.mini_map, & game_params.mini_map_config, & game_params.up_texture);
+    draw_player_on_mini_map(&player, & game_params.mini_map, & game_params.mini_map_config, & game_params.arrow_texture);
     draw_texture_ex(
         & game_params.render_target.texture,
         MAIN_MARGIN_LEFT as f32,
@@ -867,14 +872,50 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     //enemies
     if let Ok(enemies_result) = enemies.lock(){
         if let Some(enemies) = enemies_result.clone(){
-            for enemy in enemies{
-                if enemy.is_active{
-                    //draw_sphere(vec3(1.0, 1.0, 1.0), 0.1, Some(&game_params.eye_texture), WHITE);
-                    draw_sphere(vec3(enemy.position.x, 1.0, enemy.position.z), 0.05, Some(&game_params.eye_texture), WHITE);
-                }               
+            for enemy in enemies{                
+                //calculate angle
+                let mut top_image_offset = 124.0-enemy.orientation;
+                let mut bottom_image_offset = 180.0 - enemy.orientation;
+                if top_image_offset < 0.0 {
+                    top_image_offset = 360.0 + top_image_offset; 
+                }
+                if bottom_image_offset < 0.0 {
+                    bottom_image_offset = 360.0 + bottom_image_offset; 
+                }
+                game_params.eye_texture_background.update_part(&game_params.eye_texture_top, 190, top_image_offset as i32, 140, 56);
+                game_params.eye_texture_background.update_part(&game_params.eye_texture_bottom, 190, bottom_image_offset as i32, 140, 56);
+                draw_sphere(
+                    vec3(enemy.position.x, 1.0, enemy.position.z),
+                    0.05,
+                    Some(&game_params.eye_texture_background),
+                    WHITE
+                );          
             }        
         }
     } 
+
+    //calculate texture angle
+    // let angle = 360;
+    // let mut top_image_offset = 124-angle;
+    // let mut bottom_image_offset = 180 - angle;
+
+    // if top_image_offset < 0 {
+    //     top_image_offset = 360 + top_image_offset; 
+    // }
+    // if bottom_image_offset < 0 {
+    //     bottom_image_offset = 360 + bottom_image_offset; 
+    // }
+    // game_params.eye_texture.update_part(&eye_top, 190, top_image_offset, 140, 56);
+    // game_params.eye_texture.update_part(&eye_bottom, 190, bottom_image_offset, 140, 56);
+
+
+    // draw_sphere(
+    //     vec3(3.0, 1.0, 1.0),
+    //     0.05,
+    //     Some(&game_params.eye_texture),
+    //     WHITE
+    // );    
+
 
     if let Ok(message_to_server) = serde_json::to_string(player){
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use macroquad::{color::Color, texture::RenderTarget};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use macroquad::prelude::{Texture2D, Vec3, Vec2};
+use macroquad::prelude::{Texture2D, Vec3, Vec2, Image};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Player{
@@ -73,8 +73,10 @@ impl MiniMapConfig{
 pub struct GameParams{
    pub wall_texture: Texture2D,
    pub sky_texture: Texture2D,
-   pub up_texture: Texture2D,
-   pub eye_texture: Texture2D,
+   pub arrow_texture: Texture2D,
+   pub eye_texture_background: Texture2D,
+   pub eye_texture_top: Image,
+   pub eye_texture_bottom: Image,
    pub mini_map_config: MiniMapConfig,
    pub render_target: RenderTarget,
    pub yaw: f32, 
