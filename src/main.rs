@@ -57,7 +57,7 @@ fn init_game_params() -> GameParams{
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
     let arrow_texture = Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
-    let eye_texture_background = Texture2D::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None);
+    let eye_texture_background = Image::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None).unwrap();
     let eye_texture_top = Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None).unwrap();
     let eye_texture_bottom = Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None).unwrap();
     
@@ -872,27 +872,37 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     //enemies
     if let Ok(enemies_result) = enemies.lock(){
         if let Some(enemies) = enemies_result.clone(){
-            for enemy in enemies{                
+            for enemy in enemies{        
                 //calculate angle
-                let mut top_image_offset = 124.0-enemy.orientation;
-                let mut bottom_image_offset = 180.0 - enemy.orientation;
+                let angle = enemy.orientation.to_degrees();
+                let mut top_image_offset = 124.0-angle;            
+                let mut bottom_image_offset = 180.0 - angle;
                 if top_image_offset < 0.0 {
-                    top_image_offset = 360.0 + top_image_offset; 
+                    top_image_offset = 360.0 + top_image_offset;
                 }
                 if bottom_image_offset < 0.0 {
                     bottom_image_offset = 360.0 + bottom_image_offset; 
                 }
-                game_params.eye_texture_background.update_part(&game_params.eye_texture_top, 190, top_image_offset as i32, 140, 56);
-                game_params.eye_texture_background.update_part(&game_params.eye_texture_bottom, 190, bottom_image_offset as i32, 140, 56);
+
+                top_image_offset = top_image_offset.clamp(0.0, 304.0);
+                bottom_image_offset = bottom_image_offset.clamp(0.0, 304.0);
+
+                let eye_texture = Texture2D::from_image(&game_params.eye_texture_background);
+                eye_texture.update_part(&game_params.eye_texture_top, 190, top_image_offset as i32, 140, 56);
+                eye_texture.update_part(&game_params.eye_texture_bottom, 190, bottom_image_offset as i32, 140, 56);
+
+
                 draw_sphere(
                     vec3(enemy.position.x, 1.0, enemy.position.z),
                     0.05,
-                    Some(&game_params.eye_texture_background),
+                    Some(&eye_texture),
                     WHITE
                 );          
             }        
         }
     } 
+
+   
 
     //calculate texture angle
     // let angle = 360;
