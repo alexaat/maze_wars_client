@@ -14,9 +14,5 @@ pub const NAME_MARGIN_TOP: u32 = 595;
 pub const NAME_MARGIN_LEFT: u32 = 190;
 pub const SCORE_MARGIN_LEFT: u32 = 360;
 
-pub const MOVE_SPEED: f32 = 0.1;
+pub const MOVE_SPEED: f32 = 0.05;
 pub const LOOK_SPEED: f32 = 0.4;
-
-
-
-

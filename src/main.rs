@@ -1,7 +1,8 @@
 use macroquad::prelude::*;
-use std::{io, process::exit, usize};
 use serde_json::from_str;
+use std::collections::btree_map;
 use std::sync::Mutex;
+use std::{io, process::exit, usize};
 
 mod preferences;
 use preferences::*;
@@ -28,15 +29,17 @@ fn conf() -> Conf {
 }
 #[macroquad::main(conf)]
 async fn main() {
-
-   let eye_texture_bottom = Image::from_file_with_format(include_bytes!("../assets/eye_texture_360.png"), None).unwrap();
-    println!("bytest len {}" ,eye_texture_bottom.bytes.len());
-    println!("width {}" ,eye_texture_bottom.width);
-    println!("height {}" ,eye_texture_bottom.height);
+    // let eye_texture_bottom =
+    //     Image::from_file_with_format(include_bytes!("../assets/eye_texture_360.png"), None)
+    //         .unwrap();
+    // println!("bytest len {}", eye_texture_bottom.bytes.len());
+    // println!("width {}", eye_texture_bottom.width);
+    // println!("height {}", eye_texture_bottom.height);
 
     let mut player = Player::new();
     player.current_map = String::from("map_one");
-    let mut status = Status::EnterIP;
+    //let mut status = Status::EnterIP;
+    let mut status = Status::Run;
     request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
     let mut server_addr = String::new();
     //init game engine
@@ -44,29 +47,48 @@ async fn main() {
     set_cursor_grab(true);
     show_mouse(false);
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
-    let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap()); 
+    let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
     start_server_listener(Arc::clone(&socket), Arc::clone(&enemies));
+
+    let mut angle = 0.0;
     loop {
         match status {
-            Status::EnterIP => {
-                handle_ip_input(&mut status, &mut server_addr)
+            Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
+            Status::EnterName => {
+                handle_name_input(&mut status, &mut player, &server_addr);
             }
-            Status::EnterName =>{
-               handle_name_input(&mut status, &mut player, &server_addr);
-            },
-            Status::Run => handle_game_run(&server_addr, &mut player, &mut game_params, &socket,  Arc::clone(&enemies)),
+            Status::Run => handle_game_run(
+                &server_addr,
+                &mut player,
+                &mut game_params,
+                &socket,
+                Arc::clone(&enemies),
+                angle,
+            ),
         }
+        angle += 5.0;
         next_frame().await;
     }
 }
-fn init_game_params() -> GameParams{
+fn init_game_params() -> GameParams {
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
-    let arrow_texture = Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
-    let eye_texture_background = Image::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None).unwrap();
-    let eye_texture_top = Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None).unwrap();
-    let eye_texture_bottom = Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None).unwrap();
-    
+    let arrow_texture =
+        Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
+    let eye_texture_background =
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None)
+            .unwrap();
+    let eye_texture_top =
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None)
+            .unwrap();
+    let eye_texture_bottom =
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None)
+            .unwrap();
+
+    let eye_texture =
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture_360.png"), None)
+            .unwrap();
+
     let mini_map = match parse_map("assets/map_one.txt") {
         Ok(map) => map,
         Err(error) => {
@@ -102,24 +124,25 @@ fn init_game_params() -> GameParams{
     let right = front.cross(world_up).normalize();
     let position = generate_position(&mini_map);
     let last_mouse_position: Vec2 = mouse_position().into();
-    
-    GameParams{
+
+    GameParams {
         wall_texture,
         sky_texture,
         arrow_texture,
         eye_texture_background,
         eye_texture_top,
-        eye_texture_bottom,        
+        eye_texture_bottom,
+        eye_texture,
         mini_map_config,
         render_target,
-        yaw, 
-        pitch, 
+        yaw,
+        pitch,
         front,
-        right, 
-        position, 
+        right,
+        position,
         last_mouse_position,
         mini_map,
-        world_up
+        world_up,
     }
 }
 fn parse_map(file_path: &str) -> Result<Vec<Vec<bool>>, io::Error> {
@@ -164,13 +187,14 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    vec3(x, 1.0, z)
+    //vec3(x, 1.0, z)
+    vec3(1.0, 1.0, 1.0)
 }
 fn draw_player_on_mini_map(
     player: &Player,
     mini_map: &Vec<Vec<bool>>,
     config: &MiniMapConfig,
-    up_texture: &Texture2D
+    up_texture: &Texture2D,
 ) {
     let image_size = f32::min(config.cell_width, config.cell_height);
 
@@ -184,17 +208,17 @@ fn draw_player_on_mini_map(
     //horizontal tunnel + horizontal pockets
     if mini_map[index_z as usize + 1][index_x as usize]
         && mini_map[index_z as usize - 1][index_x as usize]
-    {       
+    {
         z = config.vertical_offset as f32 + index_z * config.cell_height;
         //pocket on the right
-        if mini_map[index_z as usize][index_x as usize + 1] {           
+        if mini_map[index_z as usize][index_x as usize + 1] {
             let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
             if x > max_x {
                 x = max_x
             }
         }
         //pocket on the left
-        if mini_map[index_z as usize][index_x as usize - 1] {       
+        if mini_map[index_z as usize][index_x as usize - 1] {
             let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
             if x < min_x {
                 x = min_x
@@ -205,17 +229,17 @@ fn draw_player_on_mini_map(
     //vertical tunnel + vertical pocket
     if mini_map[index_z as usize][index_x as usize + 1]
         && mini_map[index_z as usize][index_x as usize - 1]
-    {       
+    {
         x = config.horizontal_offset as f32 + index_x * config.cell_width;
         //pocket up
-        if mini_map[index_z as usize - 1][index_x as usize] {     
+        if mini_map[index_z as usize - 1][index_x as usize] {
             let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
             if z < min_z {
                 z = min_z;
             }
         }
         //pocket down
-        if mini_map[index_z as usize + 1][index_x as usize] {           
+        if mini_map[index_z as usize + 1][index_x as usize] {
             let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
             if z > max_z {
                 z = max_z;
@@ -235,7 +259,7 @@ fn draw_player_on_mini_map(
         && mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize + 1]
         && !mini_map[index_z as usize + 1][index_x as usize]
-    {      
+    {
         let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
         let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         if x < min_x {
@@ -349,7 +373,6 @@ fn draw_player_on_mini_map(
         && !mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize + 1]
     {
-
         let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         if x < min_x {
             x = min_x;
@@ -418,7 +441,12 @@ fn draw_player_on_mini_map(
         },
     );
 }
-fn draw_enemy_on_minimap(player: &Player, mini_map: &Vec<Vec<bool>>, config: &MiniMapConfig, color: Color){
+fn draw_enemy_on_minimap(
+    player: &Player,
+    mini_map: &Vec<Vec<bool>>,
+    config: &MiniMapConfig,
+    color: Color,
+) {
     let image_size = f32::min(config.cell_width, config.cell_height);
 
     //current position
@@ -431,17 +459,17 @@ fn draw_enemy_on_minimap(player: &Player, mini_map: &Vec<Vec<bool>>, config: &Mi
     //horizontal tunnel + horizontal pockets
     if mini_map[index_z as usize + 1][index_x as usize]
         && mini_map[index_z as usize - 1][index_x as usize]
-    {       
+    {
         z = config.vertical_offset as f32 + index_z * config.cell_height;
         //pocket on the right
-        if mini_map[index_z as usize][index_x as usize + 1] {           
+        if mini_map[index_z as usize][index_x as usize + 1] {
             let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
             if x > max_x {
                 x = max_x
             }
         }
         //pocket on the left
-        if mini_map[index_z as usize][index_x as usize - 1] {       
+        if mini_map[index_z as usize][index_x as usize - 1] {
             let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
             if x < min_x {
                 x = min_x
@@ -452,17 +480,17 @@ fn draw_enemy_on_minimap(player: &Player, mini_map: &Vec<Vec<bool>>, config: &Mi
     //vertical tunnel + vertical pocket
     if mini_map[index_z as usize][index_x as usize + 1]
         && mini_map[index_z as usize][index_x as usize - 1]
-    {       
+    {
         x = config.horizontal_offset as f32 + index_x * config.cell_width;
         //pocket up
-        if mini_map[index_z as usize - 1][index_x as usize] {     
+        if mini_map[index_z as usize - 1][index_x as usize] {
             let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
             if z < min_z {
                 z = min_z;
             }
         }
         //pocket down
-        if mini_map[index_z as usize + 1][index_x as usize] {           
+        if mini_map[index_z as usize + 1][index_x as usize] {
             let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
             if z > max_z {
                 z = max_z;
@@ -482,7 +510,7 @@ fn draw_enemy_on_minimap(player: &Player, mini_map: &Vec<Vec<bool>>, config: &Mi
         && mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize + 1]
         && !mini_map[index_z as usize + 1][index_x as usize]
-    {      
+    {
         let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
         let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         if x < min_x {
@@ -596,7 +624,6 @@ fn draw_enemy_on_minimap(player: &Player, mini_map: &Vec<Vec<bool>>, config: &Mi
         && !mini_map[index_z as usize - 1][index_x as usize]
         && !mini_map[index_z as usize][index_x as usize + 1]
     {
-
         let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
         if x < min_x {
             x = min_x;
@@ -648,7 +675,12 @@ fn draw_enemy_on_minimap(player: &Player, mini_map: &Vec<Vec<bool>>, config: &Mi
           ↗|
         ---
     */
-  draw_circle(x + image_size/2.0, z+image_size/2.0, image_size/2.5, color);
+    draw_circle(
+        x + image_size / 2.0,
+        z + image_size / 2.0,
+        image_size / 2.5,
+        color,
+    );
 }
 fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color) {
     for (z, line) in mini_map.into_iter().enumerate() {
@@ -702,12 +734,10 @@ fn handle_wall_collisions(
     }
 }
 //handlers
-fn handle_ip_input(
-    status: &mut Status,
-    server_addr: &mut String,
-) {
+fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
     clear_background(BLACK);
-    let mut server_addr_display = "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+    let mut server_addr_display =
+        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
     server_addr_display.push_str(server_addr);
     draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
 
@@ -729,13 +759,10 @@ fn handle_ip_input(
         exit(0);
     }
 }
-fn handle_name_input(
-    status: &mut Status,
-    player: &mut Player,
-    server_addr: &String,
-) {
+fn handle_name_input(status: &mut Status, player: &mut Player, server_addr: &String) {
     clear_background(BLACK);
-    let mut server_addr_display = "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+    let mut server_addr_display =
+        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
     server_addr_display.push_str(server_addr);
 
     let mut player_name_display = "Enter your name:     ".to_string();
@@ -746,9 +773,9 @@ fn handle_name_input(
 
     if let Some(c) = get_char_pressed() {
         if c == 3 as char || c == 13 as char {
-            if player.name.len() > 2{
-               *status = Status::Run;
-               return;
+            if player.name.len() > 2 {
+                *status = Status::Run;
+                return;
             }
         }
         if player.name.len() < MAX_NAME_LENGTH && is_valid_name_char(c) {
@@ -764,53 +791,73 @@ fn handle_name_input(
         exit(0);
     }
 }
-fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut GameParams, socket: &Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<Player>>>>){
+fn handle_game_run(
+    server_addr: &String,
+    player: &mut Player,
+    game_params: &mut GameParams,
+    socket: &Arc<UdpSocket>,
+    enemies: Arc<Mutex<Option<Vec<Player>>>>,
+    a: f64,
+) {
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
     if is_key_pressed(KeyCode::Escape) {
-       player.is_active = false;
-       if let Ok(message_to_server) = serde_json::to_string(player){
-          let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
-       }     
-       exit(0);
+        player.is_active = false;
+        if let Ok(message_to_server) = serde_json::to_string(player) {
+            let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+        }
+        exit(0);
     }
     if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-        game_params.position +=  game_params.front * MOVE_SPEED;
+        game_params.position += game_params.front * MOVE_SPEED;
     }
     if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-        game_params.position -=  game_params.front * MOVE_SPEED;
+        game_params.position -= game_params.front * MOVE_SPEED;
     }
     if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-         game_params.position -=  game_params.right * MOVE_SPEED;
+        game_params.position -= game_params.right * MOVE_SPEED;
     }
     if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-         game_params.position +=  game_params.right * MOVE_SPEED;
+        game_params.position += game_params.right * MOVE_SPEED;
     }
     let gap: f32 = 0.05;
-    handle_wall_collisions(&game_params.mini_map, prev_pos, &mut  game_params.position, gap);
+    handle_wall_collisions(
+        &game_params.mini_map,
+        prev_pos,
+        &mut game_params.position,
+        gap,
+    );
     let mouse_position: Vec2 = mouse_position().into();
-    let mouse_delta = mouse_position -  game_params.last_mouse_position;
+    let mouse_delta = mouse_position - game_params.last_mouse_position;
     game_params.last_mouse_position = mouse_position;
     game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
     game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
-    game_params.pitch = if game_params.pitch > 0.35 { 0.35 } else { game_params.pitch };
-    game_params.pitch = if game_params.pitch < -0.35 { -0.35 } else {  game_params.pitch };
+    game_params.pitch = if game_params.pitch > 0.35 {
+        0.35
+    } else {
+        game_params.pitch
+    };
+    game_params.pitch = if game_params.pitch < -0.35 {
+        -0.35
+    } else {
+        game_params.pitch
+    };
     game_params.front = vec3(
-         game_params.yaw.cos() *  game_params.pitch.cos(),
-         game_params.pitch.sin(),
-         game_params.yaw.sin() *  game_params.pitch.cos(),
+        game_params.yaw.cos() * game_params.pitch.cos(),
+        game_params.pitch.sin(),
+        game_params.yaw.sin() * game_params.pitch.cos(),
     )
     .normalize();
-     game_params.right =  game_params.front.cross(game_params.world_up).normalize();
-    let up =  game_params.right.cross( game_params.front).normalize();
+    game_params.right = game_params.front.cross(game_params.world_up).normalize();
+    let up = game_params.right.cross(game_params.front).normalize();
     game_params.position.y = 1.0;
     //2d
     set_default_camera();
     clear_background(WHITE);
-    player.position = Position::build(game_params.position.x,  game_params.position.z);
+    player.position = Position::build(game_params.position.x, game_params.position.z);
     //find projection of front on x_z plane
-    let p =  game_params.front.dot(game_params.world_up) *  game_params.world_up;
-    let orientation = ( game_params.front - p).normalize();
+    let p = game_params.front.dot(game_params.world_up) * game_params.world_up;
+    let orientation = (game_params.front - p).normalize();
     player.orientation = orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
     draw_rectangle_lines(
         MAP_MARGIN_LEFT as f32,
@@ -834,10 +881,15 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
         20.0,
         DARKGRAY,
     );
-    render_mini_map(& game_params.mini_map, &game_params.mini_map_config);
-    draw_player_on_mini_map(&player, & game_params.mini_map, & game_params.mini_map_config, & game_params.arrow_texture);
+    render_mini_map(&game_params.mini_map, &game_params.mini_map_config);
+    draw_player_on_mini_map(
+        &player,
+        &game_params.mini_map,
+        &game_params.mini_map_config,
+        &game_params.arrow_texture,
+    );
     draw_texture_ex(
-        & game_params.render_target.texture,
+        &game_params.render_target.texture,
         MAIN_MARGIN_LEFT as f32,
         (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32,
         WHITE,
@@ -847,152 +899,223 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
         },
     );
 
-    //enemies  
-    if let Ok(enemies_result) = enemies.lock(){
-        if let Some(enemies) = enemies_result.clone(){
+    //enemies
+    if let Ok(enemies_result) = enemies.lock() {
+        if let Some(enemies) = enemies_result.clone() {
             draw_enemy_names_and_scores(&enemies);
-            draw_enemies_on_minimap(&enemies, &game_params);         
+            draw_enemies_on_minimap(&enemies, &game_params);
         }
-    } 
+    }
 
     //3d
     set_camera(&Camera3D {
-        render_target: Some( game_params.render_target.clone()),
-        position:  game_params.position,
+        render_target: Some(game_params.render_target.clone()),
+        position: game_params.position,
         up: up,
-        target: game_params.position +  game_params.front,
+        target: game_params.position + game_params.front,
         ..Default::default()
     });
     clear_background(LIGHTGRAY);
     draw_grid(50, 1., BLACK, GRAY);
-    draw_walls(& game_params.mini_map, Some(& game_params.wall_texture), WHITE);
+    draw_walls(
+        &game_params.mini_map,
+        Some(&game_params.wall_texture),
+        WHITE,
+    );
     //sky
-    let center = vec3(-20.0, 5.0, -20.0);
+    let center = vec3(-20.0, 50.0, -20.0);
     let size = vec2(100.0, 100.0);
-    draw_plane(center, size, Some(& game_params.sky_texture), WHITE);
+    draw_plane(center, size, Some(&game_params.sky_texture), WHITE);
     //ground
     let center = vec3(-50.0, -0.1, -50.0);
     let size = vec2(100.0, 100.0);
     draw_plane(center, size, None, BROWN);
 
     //enemies
-    if let Ok(enemies_result) = enemies.lock(){
-        if let Some(enemies) = enemies_result.clone(){
-            for enemy in enemies{        
-                
-                // let a = 0;
-                // //top half
-                // if a > 124 && a < 180{
-                //     //double image
-                //     let offset_top = 
-
-
-                // } else {
-                //     let mut offset = 124 - a;
-                //     if offset < 0 {
-                //         offset = 360 - offset;
-                //     }
-                // }                
-                
-                
+    if let Ok(enemies_result) = enemies.lock() {
+        if let Some(enemies) = enemies_result.clone() {
+            for enemy in enemies {
                 //calculate angle
                 let angle = enemy.orientation.to_degrees();
-                let mut top_image_offset = 124.0-angle;            
+                let mut top_image_offset = 124.0 - angle;
                 let mut bottom_image_offset = 180.0 - angle;
                 if top_image_offset < 0.0 {
                     top_image_offset = 360.0 + top_image_offset;
                 }
                 if bottom_image_offset < 0.0 {
-                    bottom_image_offset = 360.0 + bottom_image_offset; 
+                    bottom_image_offset = 360.0 + bottom_image_offset;
                 }
 
                 top_image_offset = top_image_offset.clamp(0.0, 304.0);
                 bottom_image_offset = bottom_image_offset.clamp(0.0, 304.0);
 
                 let eye_texture = Texture2D::from_image(&game_params.eye_texture_background);
-                eye_texture.update_part(&game_params.eye_texture_top, 190, top_image_offset as i32, 140, 56);
-                eye_texture.update_part(&game_params.eye_texture_bottom, 190, bottom_image_offset as i32, 140, 56);
-
+                eye_texture.update_part(
+                    &game_params.eye_texture_top,
+                    190,
+                    top_image_offset as i32,
+                    140,
+                    56,
+                );
+                eye_texture.update_part(
+                    &game_params.eye_texture_bottom,
+                    190,
+                    bottom_image_offset as i32,
+                    140,
+                    56,
+                );
 
                 draw_sphere(
                     vec3(enemy.position.x, 1.0, enemy.position.z),
                     0.05,
                     Some(&eye_texture),
-                    WHITE
-                );          
-            }        
+                    WHITE,
+                );
+            }
         }
-    } 
+    }
 
-   
+    ///////////////////////////////////////////////////
+    //453 x 360
+
+    let bytes = &game_params.eye_texture.bytes;
+    let width = game_params.eye_texture.width;
+    let height = game_params.eye_texture.height;
+
+    let index = (150.0 * 4.0) as usize;
+    let mut left_half = bytes[..index].to_vec();
+    let mut right_half = bytes[index..].to_vec();
+    let mut bytes = vec![];
+    bytes.append(&mut right_half);
+    bytes.append(&mut left_half);
+
+    let image = Image {
+        bytes,
+        width,
+        height,
+    };
+
+    let texture = Texture2D::from_image(&image);
+
+    draw_sphere(vec3(1.0, 1.0, 3.0), 0.05, Some(&texture), WHITE);
+
+    draw_texture_ex(
+        &texture,
+        2.0,
+        2.5,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(1.0, 0.79)),
+            source: None,
+            rotation: 0.0,
+            flip_x: false,
+            flip_y: false,
+            pivot: None,
+        },
+    );
+
+    ///////////////////////////////////////////////////
+
+    // println!("{a}");
+    // let mut a = a as usize;
+    // if a > 360 {
+    //     a = a - 360;
+    // }
+    // a = a * 4;
+
+    // //calculate texture
+    // let bytes = &game_params.eye_texture.bytes;
+    // let width = game_params.eye_texture.width;
+    // let height = game_params.eye_texture.height;
+    // let mut new_bytes = vec![];
+
+    // let top_half = bytes[a..].to_vec();
+    // let bottom_half = &bytes[..a].to_vec();
+    // for b in top_half {
+    //     new_bytes.push(b);
+    // }
+    // for b in bottom_half {
+    //     new_bytes.push(*b);
+    // }
+
+    // let new_image = Image {
+    //     bytes: new_bytes,
+    //     width,
+    //     height,
+    // };
+
+    // let texture = Texture2D::from_image(&new_image);
+
+    // draw_sphere(vec3(1.0, 1.0, 3.0), 0.05, Some(&texture), WHITE);
+
+    ////////////////////////////////////////////////////
 
     //calculate texture angle
-    // let angle = 360;
-    // let mut top_image_offset = 124-angle;
-    // let mut bottom_image_offset = 180 - angle;
+    /*
+    let mut angle = a as i32;
+    if angle > 360 {
+        angle = angle - 360;
+    }
+    let mut top_image_offset = 124 - angle;
+    let mut bottom_image_offset = 180 - angle;
 
-    // if top_image_offset < 0 {
-    //     top_image_offset = 360 + top_image_offset; 
-    // }
-    // if bottom_image_offset < 0 {
-    //     bottom_image_offset = 360 + bottom_image_offset; 
-    // }
-    // game_params.eye_texture.update_part(&eye_top, 190, top_image_offset, 140, 56);
-    // game_params.eye_texture.update_part(&eye_bottom, 190, bottom_image_offset, 140, 56);
+    if top_image_offset < 0 {
+        top_image_offset = 360 + top_image_offset;
+    }
+    if bottom_image_offset < 0 {
+        bottom_image_offset = 360 + bottom_image_offset;
+    }
+    game_params
+        .eye_texture
+        .update_part(&eye_top, 190, top_image_offset, 140, 56);
+    game_params
+        .eye_texture
+        .update_part(&eye_bottom, 190, bottom_image_offset, 140, 56);
 
-
-    // draw_sphere(
-    //     vec3(3.0, 1.0, 1.0),
-    //     0.05,
-    //     Some(&game_params.eye_texture),
-    //     WHITE
-    // );    
-
-
-    if let Ok(message_to_server) = serde_json::to_string(player){
+        draw_sphere(vec3(3.0, 1.0, 1.0), 0.05, Some(&texture), WHITE);
+    */
+    if let Ok(message_to_server) = serde_json::to_string(player) {
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
-    } 
-
+    }
 }
-fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<Player>>>>){
+fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<Player>>>>) {
     //Server response listener
-     thread::spawn(move | | loop {
+    thread::spawn(move || loop {
         let mut buffer = [0u8; 1024];
-        if let Ok((size, _)) = socket.recv_from(&mut buffer){
+        if let Ok((size, _)) = socket.recv_from(&mut buffer) {
             // println!(
             //     "Received {} bytes from {}: {}",
             //     size,
             //     src,
             //     std::str::from_utf8(&buffer[..size]).unwrap_or("<invalid UTF-8>")
             // );
-            if let Ok(enemies_str) = std::str::from_utf8(&buffer[..size]){                
+            if let Ok(enemies_str) = std::str::from_utf8(&buffer[..size]) {
                 let enemies_result = from_str::<Vec<Player>>(enemies_str);
                 match enemies_result {
-                    Ok(es) => {   
-                        let enemies_locked_result =  enemies.lock();
-                        match enemies_locked_result{
+                    Ok(es) => {
+                        let enemies_locked_result = enemies.lock();
+                        match enemies_locked_result {
                             Ok(mut enemies_locked) => *enemies_locked = Some(es),
-                            Err(e) => println!("Error while locking: {e}")
+                            Err(e) => println!("Error while locking: {e}"),
                         }
-                    },
-                    Err(e) => println!("line 902 Error Parsing: {e}")                    
+                    }
+                    Err(e) => println!("line 902 Error Parsing: {e}"),
                 }
-            }else {
+            } else {
                 println!("no enemies...",);
-                let enemies_locked_result =  enemies.lock();
-                match enemies_locked_result{
+                let enemies_locked_result = enemies.lock();
+                match enemies_locked_result {
                     Ok(mut enemies_locked) => *enemies_locked = None,
-                    Err(e) => println!("Error while locking: {e}")
+                    Err(e) => println!("Error while locking: {e}"),
                 }
             }
-
         }
-     });
+    });
 }
-fn draw_enemy_names_and_scores(enemies: &Vec<Player>){
+fn draw_enemy_names_and_scores(enemies: &Vec<Player>) {
     let mut top_offset = NAME_MARGIN_TOP as f32 + 35.0;
     for enemy in enemies {
-        if enemy.is_active{
+        if enemy.is_active {
             draw_text(
                 &enemy.name,
                 NAME_MARGIN_LEFT as f32,
@@ -1006,17 +1129,22 @@ fn draw_enemy_names_and_scores(enemies: &Vec<Player>){
                 top_offset,
                 20.0,
                 DARKGRAY,
-            );  
-            top_offset += 35.0;          
-        }  
-    } 
+            );
+            top_offset += 35.0;
+        }
+    }
 }
-fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams){
-    for enemy in enemies{
-        if enemy.is_active{
-            draw_enemy_on_minimap(&enemy, &game_params.mini_map, &game_params.mini_map_config, RED);
-        }       
-    }   
+fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams) {
+    for enemy in enemies {
+        if enemy.is_active {
+            draw_enemy_on_minimap(
+                &enemy,
+                &game_params.mini_map,
+                &game_params.mini_map_config,
+                RED,
+            );
+        }
+    }
 }
 /*
 use macroquad::prelude::*;
