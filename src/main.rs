@@ -873,6 +873,22 @@ fn handle_game_run(server_addr: &String, player: &mut Player, game_params: &mut 
     if let Ok(enemies_result) = enemies.lock(){
         if let Some(enemies) = enemies_result.clone(){
             for enemy in enemies{        
+                
+                // let a = 0;
+                // //top half
+                // if a > 124 && a < 180{
+                //     //double image
+                //     let offset_top = 
+
+
+                // } else {
+                //     let mut offset = 124 - a;
+                //     if offset < 0 {
+                //         offset = 360 - offset;
+                //     }
+                // }                
+                
+                
                 //calculate angle
                 let angle = enemy.orientation.to_degrees();
                 let mut top_image_offset = 124.0-angle;            
