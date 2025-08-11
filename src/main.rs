@@ -977,7 +977,50 @@ fn handle_game_run(
 
     ///////////////////////////////////////////////////
     //453 x 360
+    //let a = 15.0;
+    let height =  game_params.eye_texture.height as i32;
+    let width =  game_params.eye_texture.width as i32;
+    let total_bytes = height*width*4;
+    let byte: u8 = 0;
+    let mut bytes = vec![byte; total_bytes as usize];
+    let mut column_index: i32 = 0;
+    for (index, byte) in game_params.eye_texture.bytes.iter().enumerate(){
+        if index % height as usize == 0 {
+            column_index = index as i32;
+        }        
+        let mut new_index = (index as f64 - 4.0*a) as i32;
+        if new_index < column_index{
+            new_index = height as i32 + new_index;
+        }
+        bytes[new_index as usize] = *byte;
+    }
 
+    let image = Image {
+        bytes,
+        width: width as u16,
+        height : height as u16,
+    };
+
+    let texture = Texture2D::from_image(&image);
+    draw_sphere(vec3(1.0, 1.0, 3.0), 0.05, Some(&texture), WHITE);
+
+        draw_texture_ex(
+        &texture,
+        2.0,
+        2.5,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(1.0, 0.79)),
+            source: None,
+            rotation: 0.0,
+            flip_x: false,
+            flip_y: false,
+            pivot: None,
+        },
+    );
+
+
+    /*
     let bytes = &game_params.eye_texture.bytes;
     let width = game_params.eye_texture.width;
     let height = game_params.eye_texture.height;
@@ -1013,6 +1056,7 @@ fn handle_game_run(
             pivot: None,
         },
     );
+    */
 
     ///////////////////////////////////////////////////
 
