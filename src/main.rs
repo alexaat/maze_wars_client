@@ -28,6 +28,12 @@ fn conf() -> Conf {
 }
 #[macroquad::main(conf)]
 async fn main() {
+
+   let eye_texture_bottom = Image::from_file_with_format(include_bytes!("../assets/eye_texture_360.png"), None).unwrap();
+    println!("bytest len {}" ,eye_texture_bottom.bytes.len());
+    println!("width {}" ,eye_texture_bottom.width);
+    println!("height {}" ,eye_texture_bottom.height);
+
     let mut player = Player::new();
     player.current_map = String::from("map_one");
     let mut status = Status::EnterIP;
