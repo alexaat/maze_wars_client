@@ -1,6 +1,5 @@
 use macroquad::prelude::*;
 use serde_json::from_str;
-use std::collections::btree_map;
 use std::sync::Mutex;
 use std::{io, process::exit, usize};
 
@@ -67,6 +66,9 @@ async fn main() {
             ),
         }
         angle += 1.0;
+        if angle > 360.0{
+            angle -= 360.0;
+        }
         next_frame().await;
     }
 }
@@ -975,15 +977,9 @@ fn handle_game_run(
         }
     }
 
-    ///////////////////////////////////////////////////
+    ///////////////////////vertical ////////////////////////////
     //453 x 360
-    //let a = 15.0;
-    let mut a = a as f64;
-    if a > 360.0 {
-        a = a - 360.0;
-    }
-    println!("a = {a}");
-
+    /*
     let height =  game_params.eye_texture.height as i32;
     let width =  game_params.eye_texture.width as i32;
     let total_bytes = height*width*4;
@@ -991,15 +987,18 @@ fn handle_game_run(
     let mut bytes = vec![byte; total_bytes as usize];
     let mut column_index: i32 = 0;
     for (index, byte) in game_params.eye_texture.bytes.iter().enumerate(){
-        if index % height as usize == 0 {
+        if index % (4 as usize * height as usize) == 0 {
             column_index = index as i32;
-        }        
+        }  
         let mut new_index = (index as f64 - 4.0*a) as i32;
         if new_index < column_index{
-            new_index = height as i32 + new_index;
+            new_index = 4 * height as i32 + new_index;
         }
-        bytes[new_index as usize] = *byte;
+        if new_index  < 652320{
+             bytes[new_index as usize] = *byte;
+        }   
     }
+
 
     let image = Image {
         bytes,
@@ -1024,19 +1023,21 @@ fn handle_game_run(
             pivot: None,
         },
     );
+    */
+    /////////////end vertical/////////////////
 
-
+    //////////////horizontal/////////////////
     /*
     let bytes = &game_params.eye_texture.bytes;
     let width = game_params.eye_texture.width;
     let height = game_params.eye_texture.height;
 
-    let index = (150.0 * 4.0) as usize;
-    let mut left_half = bytes[..index].to_vec();
-    let mut right_half = bytes[index..].to_vec();
+    let index = (a * 4.0) as usize;
+    let mut first_half = bytes[..index].to_vec();
+    let mut second_half = bytes[index..].to_vec();
     let mut bytes = vec![];
-    bytes.append(&mut right_half);
-    bytes.append(&mut left_half);
+    bytes.append(&mut second_half);
+    bytes.append(&mut first_half);
 
     let image = Image {
         bytes,
@@ -1063,8 +1064,7 @@ fn handle_game_run(
         },
     );
     */
-
-    ///////////////////////////////////////////////////
+    /////////////////end horizontal//////////////////////////////////
 
     // println!("{a}");
     // let mut a = a as usize;
@@ -1101,29 +1101,38 @@ fn handle_game_run(
     ////////////////////////////////////////////////////
 
     //calculate texture angle
-    /*
-    let mut angle = a as i32;
-    if angle > 360 {
-        angle = angle - 360;
-    }
-    let mut top_image_offset = 124 - angle;
-    let mut bottom_image_offset = 180 - angle;
+    //let a = 1.0;
+    let a = 124.0;
+    let mut top_image_offset = 124.0 - a;
+    let mut bottom_image_offset = 180.0 - a;
 
-    if top_image_offset < 0 {
-        top_image_offset = 360 + top_image_offset;
+    if top_image_offset < 0.0 {
+        top_image_offset = 360.0 + top_image_offset;
     }
-    if bottom_image_offset < 0 {
-        bottom_image_offset = 360 + bottom_image_offset;
+    if bottom_image_offset < 0.0 {
+        bottom_image_offset = 360.0 + bottom_image_offset;
     }
-    game_params
-        .eye_texture
-        .update_part(&eye_top, 190, top_image_offset, 140, 56);
-    game_params
-        .eye_texture
-        .update_part(&eye_bottom, 190, bottom_image_offset, 140, 56);
 
-        draw_sphere(vec3(3.0, 1.0, 1.0), 0.05, Some(&texture), WHITE);
-    */
+    let texture = Texture2D::from_image(&game_params.eye_texture_background);
+    texture.update_part(&game_params.eye_texture_top, 190, top_image_offset as i32, 140, 56);
+    texture.update_part(&game_params.eye_texture_bottom, 190, bottom_image_offset as i32, 140, 56);
+
+    draw_sphere(vec3(1.0, 1.0, 3.0), 0.05, Some(&texture), WHITE);
+    draw_texture_ex(
+    &texture,
+    2.0,
+    2.5,
+    WHITE,
+    DrawTextureParams {
+        dest_size: Some(vec2(1.0, 0.79)),
+        source: None,
+        rotation: 0.0,
+        flip_x: false,
+        flip_y: false,
+        pivot: None,
+    },
+);
+    
     if let Ok(message_to_server) = serde_json::to_string(player) {
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     }
