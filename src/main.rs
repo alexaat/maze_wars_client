@@ -66,7 +66,7 @@ async fn main() {
                 angle,
             ),
         }
-        angle += 5.0;
+        angle += 1.0;
         next_frame().await;
     }
 }
@@ -978,6 +978,12 @@ fn handle_game_run(
     ///////////////////////////////////////////////////
     //453 x 360
     //let a = 15.0;
+    let mut a = a as f64;
+    if a > 360.0 {
+        a = a - 360.0;
+    }
+    println!("a = {a}");
+
     let height =  game_params.eye_texture.height as i32;
     let width =  game_params.eye_texture.width as i32;
     let total_bytes = height*width*4;
