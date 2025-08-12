@@ -37,8 +37,7 @@ async fn main() {
 
     let mut player = Player::new();
     player.current_map = String::from("map_one");
-    //let mut status = Status::EnterIP;
-    let mut status = Status::Run;
+    let mut status = Status::EnterIP;
     request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
     let mut server_addr = String::new();
     //init game engine
