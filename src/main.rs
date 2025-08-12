@@ -1,4 +1,4 @@
-use macroquad::prelude::*;
+use macroquad::{prelude::*, texture};
 use serde_json::from_str;
 use std::sync::Mutex;
 use std::{io, process::exit, usize};
@@ -48,8 +48,6 @@ async fn main() {
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
     start_server_listener(Arc::clone(&socket), Arc::clone(&enemies));
-
-    let mut angle = 0.0;
     loop {
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
@@ -61,13 +59,8 @@ async fn main() {
                 &mut player,
                 &mut game_params,
                 &socket,
-                Arc::clone(&enemies),
-                angle,
+                Arc::clone(&enemies)
             ),
-        }
-        angle += 1.0;
-        if angle > 360.0 {
-            angle -= 360.0;
         }
         next_frame().await;
     }
@@ -77,18 +70,17 @@ fn init_game_params() -> GameParams {
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
     let arrow_texture =
         Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
-    let eye_texture_background =
-        Image::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None)
-            .unwrap();
-    let eye_texture_top =
-        Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None)
-            .unwrap();
-    let eye_texture_bottom =
-        Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None)
-            .unwrap();
-
+    // let eye_texture_background =
+    //     Image::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None)
+    //         .unwrap();
+    // let eye_texture_top =
+    //     Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None)
+    //         .unwrap();
+    // let eye_texture_bottom =
+    //     Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None)
+    //         .unwrap();
     let eye_texture =
-        Image::from_file_with_format(include_bytes!("../assets/eye_texture_360.png"), None)
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture.png"), None)
             .unwrap();
 
     let mini_map = match parse_map("assets/map_one.txt") {
@@ -131,9 +123,6 @@ fn init_game_params() -> GameParams {
         wall_texture,
         sky_texture,
         arrow_texture,
-        eye_texture_background,
-        eye_texture_top,
-        eye_texture_bottom,
         eye_texture,
         mini_map_config,
         render_target,
@@ -189,8 +178,7 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    //vec3(x, 1.0, z)
-    vec3(1.0, 1.0, 1.0)
+    vec3(x, 1.0, z)
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -798,8 +786,7 @@ fn handle_game_run(
     player: &mut Player,
     game_params: &mut GameParams,
     socket: &Arc<UdpSocket>,
-    enemies: Arc<Mutex<Option<Vec<Player>>>>,
-    a: f64,
+    enemies: Arc<Mutex<Option<Vec<Player>>>>    
 ) {
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
@@ -925,7 +912,7 @@ fn handle_game_run(
         WHITE,
     );
     //sky
-    let center = vec3(-20.0, 50.0, -20.0);
+    let center = vec3(-20.0, 5.0, -20.0);
     let size = vec2(100.0, 100.0);
     draw_plane(center, size, Some(&game_params.sky_texture), WHITE);
     //ground
@@ -937,7 +924,33 @@ fn handle_game_run(
     if let Ok(enemies_result) = enemies.lock() {
         if let Some(enemies) = enemies_result.clone() {
             for enemy in enemies {
+
+                let bytes = game_params.eye_texture.bytes.clone();
+                let width =  game_params.eye_texture.width as u32;
+                let height = game_params.eye_texture.height;
+
+                let a = enemy.orientation.to_degrees() as u32;
+                let index = a*width*4;
+                let mut top_half = bytes[..index as usize].to_vec();
+                let mut bottom_half = bytes[index as usize ..].to_vec();
+                let mut bytes = vec![];
+                bytes.append(&mut bottom_half);
+                bytes.append(&mut top_half);
+
+                let image = Image { bytes, width: width as u16, height };
+                let texture = Texture2D::from_image(&image);
+                //draw_sphere(vec3(1.0, 1.0, 3.0), 0.05, Some(&texture), WHITE);
+
+                draw_sphere(
+                    vec3(enemy.position.x, 1.0, enemy.position.z),
+                    0.05,
+                    Some(&texture),
+                    WHITE,
+                );
+
+
                 //calculate angle
+                /*
                 let angle = enemy.orientation.to_degrees();
                 let mut top_image_offset = 124.0 - angle;
                 let mut bottom_image_offset = 180.0 - angle;
@@ -973,9 +986,39 @@ fn handle_game_run(
                     Some(&eye_texture),
                     WHITE,
                 );
+                */
             }
         }
     }
+
+
+
+    ////////////palette//////////////
+    /*
+    let pallete = Image::from_file_with_format(include_bytes!("../assets/palette.png"), None).unwrap();
+    let texture = Texture2D::from_image(&pallete);
+    draw_texture_ex(
+        &texture,
+        2.0,
+        2.5,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(2.0, 2.0)),
+            source: None,
+            rotation: 0.0,
+            flip_x: false,
+            flip_y: false,
+            pivot: None,
+        },
+    );
+    */
+   /////////end palette ////////////// 
+    
+    //println!("//////////////////////////");
+    //println!("bytes: {:?}",pallete.bytes);
+    //println!("//////////////////////////");
+
+
 
     ///////////////////////vertical ////////////////////////////
     //453 x 360
