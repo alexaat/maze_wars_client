@@ -66,7 +66,7 @@ async fn main() {
             ),
         }
         angle += 1.0;
-        if angle > 360.0{
+        if angle > 360.0 {
             angle -= 360.0;
         }
         next_frame().await;
@@ -81,10 +81,10 @@ fn init_game_params() -> GameParams {
         Image::from_file_with_format(include_bytes!("../assets/eye_texture_background.png"), None)
             .unwrap();
     let eye_texture_top =
-        Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None)
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None)
             .unwrap();
     let eye_texture_bottom =
-        Image::from_file_with_format(include_bytes!("../assets/eye_texture_bottom.png"), None)
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture_top.png"), None)
             .unwrap();
 
     let eye_texture =
@@ -989,14 +989,14 @@ fn handle_game_run(
     for (index, byte) in game_params.eye_texture.bytes.iter().enumerate(){
         if index % (4 as usize * height as usize) == 0 {
             column_index = index as i32;
-        }  
+        }
         let mut new_index = (index as f64 - 4.0*a) as i32;
         if new_index < column_index{
             new_index = 4 * height as i32 + new_index;
         }
         if new_index  < 652320{
              bytes[new_index as usize] = *byte;
-        }   
+        }
     }
 
 
@@ -1100,39 +1100,81 @@ fn handle_game_run(
 
     ////////////////////////////////////////////////////
 
+    ///////////////////////halfs////////////////////////
     //calculate texture angle
+    /*
     //let a = 1.0;
-    let a = 124.0;
-    let mut top_image_offset = 124.0 - a;
-    let mut bottom_image_offset = 180.0 - a;
+    let a = 185.0;
+    //let mut top_image_offset = 124.0 - a;
+    let mut top_image_offset = 180.0 - a;
+    //let mut bottom_image_offset = 180.0;
+    //let mut bottom_image_offset = 180.0 - a;
 
-    if top_image_offset < 0.0 {
-        top_image_offset = 360.0 + top_image_offset;
-    }
-    if bottom_image_offset < 0.0 {
-        bottom_image_offset = 360.0 + bottom_image_offset;
-    }
+    // if top_image_offset < 0.0 {
+    //     top_image_offset = 360.0 + top_image_offset; // 359
+    // }
+    // if bottom_image_offset < 0.0 {
+    //     bottom_image_offset = 360.0 + bottom_image_offset;
+    // }
+
+    let mut image_height = 56.0;
+    // if top_image_offset < 0.0 {
+    //     image_height = image_height + top_image_offset;
+    //     top_image_offset = 0.0;
+    // }
+
+    // if top_image_offset + image_height as f64 > 360.0 {
+    //     image_height = (360.0 - top_image_offset as f64) as i32; //360-359 = 1;
+    // }
+    // if bottom_image_offset + image_height as f64 > 360.0 {
+    //     image_height = (360.0 - bottom_image_offset as f64) as i32;
+    // }
 
     let texture = Texture2D::from_image(&game_params.eye_texture_background);
-    texture.update_part(&game_params.eye_texture_top, 190, top_image_offset as i32, 140, 56);
-    texture.update_part(&game_params.eye_texture_bottom, 190, bottom_image_offset as i32, 140, 56);
+    // let texture =
+    //     Texture2D::from_file_with_format(include_bytes!("../assets/eye_texture_360.png"), None);
+
+    texture.update_part(
+        &game_params.eye_texture_top,
+        190,
+        top_image_offset as i32,
+        140,
+        56,
+    );
+
+    // texture.update_part(
+    //     &game_params.eye_texture_top,
+    //     190,
+    //     top_image_offset as i32,
+    //     140,
+    //     image_height,
+    // );
+    // texture.update_part(
+    //     &game_params.eye_texture_bottom,
+    //     190,
+    //     bottom_image_offset as i32,
+    //     140,
+    //     image_height,
+    //);
 
     draw_sphere(vec3(1.0, 1.0, 3.0), 0.05, Some(&texture), WHITE);
     draw_texture_ex(
-    &texture,
-    2.0,
-    2.5,
-    WHITE,
-    DrawTextureParams {
-        dest_size: Some(vec2(1.0, 0.79)),
-        source: None,
-        rotation: 0.0,
-        flip_x: false,
-        flip_y: false,
-        pivot: None,
-    },
-);
-    
+        &texture,
+        2.0,
+        2.5,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(1.0, 0.79)),
+            source: None,
+            rotation: 0.0,
+            flip_x: false,
+            flip_y: false,
+            pivot: None,
+        },
+    );
+    */
+    ////////////////end halfs///////////////////////
+
     if let Ok(message_to_server) = serde_json::to_string(player) {
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     }
