@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+//#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Player {
     pub id: String,
     pub name: String,
     pub position: Position,
     pub score: u32,
     pub is_active: bool,
-    pub orientation: f32,
+    pub orientation: Orientation,
     pub current_map: String,
 }
 impl Player {
@@ -19,29 +19,30 @@ impl Player {
         Player {
             id: Uuid::new_v4().to_string(),
             name: String::from(""),
-            position: Position::new(),
+            position: Position::new(0, 0),
             score: 0,
             is_active: true,
-            orientation: 0.0,
+            orientation: Orientation::NORTH,
             current_map: String::from(""),
         }
     }
 }
 
+enum Orientation {
+    NORTH,
+    EAST,
+    SOUTH,
+    WEST,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Position {
-    pub x: f32,
-    pub z: f32,
+    pub x: u16,
+    pub z: u16,
 }
 impl Position {
-    pub fn new() -> Self {
-        Position { x: 0.0, z: 0.0 }
-    }
-    pub fn build(x: f32, z: f32) -> Self {
-        let mut pos = Position::new();
-        pos.x = x;
-        pos.z = z;
-        pos
+    pub fn new(x: u16, z: u16) -> Self {
+        Position { x, z }
     }
 }
 
@@ -52,6 +53,7 @@ pub enum Status {
     Run,
 }
 
+/*
 #[derive(Debug)]
 pub struct MiniMapConfig {
     pub cell_width: f32,
@@ -99,3 +101,4 @@ pub struct GameParams {
     pub mini_map: Vec<Vec<bool>>,
     pub world_up: Vec3,
 }
+*/

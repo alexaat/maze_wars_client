@@ -26,6 +26,100 @@ fn conf() -> Conf {
         ..Default::default()
     }
 }
+
+#[macroquad::main(conf)]
+async fn main() {
+    //send request from client:  echo -n 'Hello from client' | nc -u 127.0.0.1 4000
+    let mut status = Status::EnterIP;
+    let mut player = Player::new();
+    player.current_map = String::from("map_one");
+    //request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
+    let mut server_addr = String::new();
+    loop {
+        match status {
+            Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
+            Status::EnterName => handle_name_input(&mut status, &mut player, &server_addr),
+            Status::Run => handle_game_run(&server_addr, &mut player),
+        }
+
+        next_frame().await;
+    }
+}
+
+//handlers
+fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
+    clear_background(BLACK);
+    let mut server_addr_display =
+        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+    server_addr_display.push_str(server_addr);
+    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+
+    if let Some(c) = get_char_pressed() {
+        if c == 3 as char || c == 13 as char {
+            *status = Status::EnterName;
+            return;
+        }
+
+        if is_valid_ip_char(c) {
+            server_addr.push(c);
+        }
+    }
+
+    if is_key_pressed(KeyCode::Backspace) {
+        server_addr.pop();
+    }
+    if is_key_pressed(KeyCode::Escape) {
+        exit(0);
+    }
+}
+fn handle_name_input(status: &mut Status, player: &mut Player, server_addr: &String) {
+    clear_background(BLACK);
+    let mut server_addr_display =
+        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+    server_addr_display.push_str(server_addr);
+
+    let mut player_name_display = "Enter your name:     ".to_string();
+    player_name_display.push_str(&player.name);
+
+    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+    draw_text(player_name_display.as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
+
+    if let Some(c) = get_char_pressed() {
+        if c == 3 as char || c == 13 as char {
+            if player.name.len() > 2 {
+                *status = Status::Run;
+                return;
+            }
+        }
+        if player.name.len() < MAX_NAME_LENGTH && is_valid_name_char(c) {
+            player.name.push(c);
+        }
+    }
+
+    if is_key_pressed(KeyCode::Backspace) {
+        player.name.pop();
+    }
+
+    if is_key_pressed(KeyCode::Escape) {
+        exit(0);
+    }
+}
+fn handle_game_run(server_addr: &String, player: &mut Player) {
+    if is_key_pressed(KeyCode::Escape) {
+        exit(0);
+    }
+}
+
+/*
+fn conf() -> Conf {
+    Conf {
+        window_title: String::from("FPS-CLIENT"),
+        window_width: SCREEN_WIDTH as i32,
+        window_height: SCREEN_HEIGHT as i32,
+        fullscreen: false,
+        ..Default::default()
+    }
+}
 #[macroquad::main(conf)]
 async fn main() {
     //send request from client:  echo -n 'Hello from client' | nc -u 127.0.0.1 4000
@@ -769,7 +863,7 @@ fn handle_game_run(
     player: &mut Player,
     game_params: &mut GameParams,
     socket: &Arc<UdpSocket>,
-    enemies: Arc<Mutex<Option<Vec<Player>>>>    
+    enemies: Arc<Mutex<Option<Vec<Player>>>>
 ) {
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
@@ -1002,3 +1096,4 @@ fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams) {
         }
     }
 }
+*/
