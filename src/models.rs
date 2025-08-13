@@ -28,7 +28,7 @@ impl Player {
     }
 }
 
-enum Orientation {
+pub enum Orientation {
     NORTH,
     EAST,
     SOUTH,

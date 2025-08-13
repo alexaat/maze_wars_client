@@ -30,7 +30,8 @@ fn conf() -> Conf {
 #[macroquad::main(conf)]
 async fn main() {
     //send request from client:  echo -n 'Hello from client' | nc -u 127.0.0.1 4000
-    let mut status = Status::EnterIP;
+    //let mut status = Status::EnterIP;
+    let mut status = Status::Run;
     let mut player = Player::new();
     player.current_map = String::from("map_one");
     //request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
@@ -107,6 +108,30 @@ fn handle_name_input(status: &mut Status, player: &mut Player, server_addr: &Str
 fn handle_game_run(server_addr: &String, player: &mut Player) {
     if is_key_pressed(KeyCode::Escape) {
         exit(0);
+    }
+    if is_key_pressed(KeyCode::Up) || is_key_pressed(KeyCode::W) {
+        match &player.orientation {
+            Orientation::NORTH => player.position.z -= 1,
+            _ => player.orientation = Orientation::NORTH,
+        }
+    }
+    if is_key_pressed(KeyCode::Down) || is_key_pressed(KeyCode::S) {
+        match &player.orientation {
+            Orientation::SOUTH => player.position.z += 1,
+            _ => player.orientation = Orientation::SOUTH,
+        }
+    }
+    if is_key_pressed(KeyCode::Left) || is_key_pressed(KeyCode::A) {
+        match &player.orientation {
+            Orientation::WEST => player.position.x -= 1,
+            _ => player.orientation = Orientation::WEST,
+        }
+    }
+    if is_key_pressed(KeyCode::Right) || is_key_pressed(KeyCode::D) {
+        match &player.orientation {
+            Orientation::EAST => player.position.x += 1,
+            _ => player.orientation = Orientation::EAST,
+        }
     }
 }
 
