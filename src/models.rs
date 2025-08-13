@@ -37,11 +37,11 @@ pub enum Orientation {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Position {
-    pub x: u16,
-    pub z: u16,
+    pub x: i32,
+    pub z: i32,
 }
 impl Position {
-    pub fn new(x: u16, z: u16) -> Self {
+    pub fn new(x: i32, z: i32) -> Self {
         Position { x, z }
     }
 }

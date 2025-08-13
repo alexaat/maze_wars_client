@@ -106,6 +106,10 @@ fn handle_name_input(status: &mut Status, player: &mut Player, server_addr: &Str
     }
 }
 fn handle_game_run(server_addr: &String, player: &mut Player) {
+    handle_key_press(player);
+}
+
+fn handle_key_press(player: &mut Player) {
     if is_key_pressed(KeyCode::Escape) {
         exit(0);
     }
