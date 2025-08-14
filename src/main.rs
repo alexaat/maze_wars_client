@@ -34,19 +34,73 @@ async fn main() {
     let mut status = Status::Run;
     let mut player = Player::new();
     player.current_map = String::from("map_one");
-    //request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
     let mut server_addr = String::new();
+    let arrow_texture =
+        Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
+    let mini_map = match parse_map("assets/map_one.txt") {
+        Ok(map) => map,
+        Err(error) => {
+            println!("Problem opening the file: {error:?}");
+            exit(1);
+        }
+    };
+    let mini_map_config = MiniMapConfig::new(
+        &mini_map,
+        MAP_WIDTH,
+        MAP_HEIGHT,
+        MAP_MARGIN_LEFT,
+        MAP_MARGIN_TOP,
+        BLACK,
+    );
+    let position = generate_position(&mini_map);
+    player.position = Position::new(position.x as i32, position.z as i32);
+
     loop {
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
             Status::EnterName => handle_name_input(&mut status, &mut player, &server_addr),
-            Status::Run => handle_game_run(&server_addr, &mut player),
+            Status::Run => handle_game_run(
+                &server_addr,
+                &mut player,
+                &mini_map,
+                &mini_map_config,
+                &arrow_texture,
+            ),
         }
-
         next_frame().await;
     }
 }
 
+fn parse_map(file_path: &str) -> Result<Vec<Vec<bool>>, io::Error> {
+    let content = read_file(file_path)?;
+    if !is_map_valid(&content) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Invalid Map Format",
+        ));
+    }
+    Ok(map_to_slice(&content))
+}
+fn render_mini_map(mini_map: &Vec<Vec<bool>>, mini_map_config: &MiniMapConfig) {
+    let mut horizontal_offset: f32 = mini_map_config.horizontal_offset as f32;
+    let mut vertical_offset: f32 = mini_map_config.vertical_offset as f32;
+    for line in mini_map {
+        for cell in line {
+            if *cell {
+                draw_rectangle(
+                    horizontal_offset,
+                    vertical_offset,
+                    mini_map_config.cell_width,
+                    mini_map_config.cell_height,
+                    mini_map_config.cell_color,
+                );
+            }
+            horizontal_offset += mini_map_config.cell_width
+        }
+        horizontal_offset = mini_map_config.horizontal_offset as f32;
+        vertical_offset += mini_map_config.cell_height;
+    }
+}
 //handlers
 fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
     clear_background(BLACK);
@@ -105,38 +159,141 @@ fn handle_name_input(status: &mut Status, player: &mut Player, server_addr: &Str
         exit(0);
     }
 }
-fn handle_game_run(server_addr: &String, player: &mut Player) {
-    handle_key_press(player);
+fn handle_game_run(
+    server_addr: &String,
+    player: &mut Player,
+    mini_map: &Vec<Vec<bool>>,
+    mini_map_config: &MiniMapConfig,
+    arrow_texture: &Texture2D,
+) {
+    handle_key_press(player, &mini_map);
+
+    //2d
+    set_default_camera();
+    clear_background(WHITE);
+    //player.position = Position::build(game_params.position.x, game_params.position.z);
+    render_mini_map(&mini_map, &mini_map_config);
+    draw_player_on_mini_map(&player, &mini_map, &mini_map_config, arrow_texture);
 }
 
-fn handle_key_press(player: &mut Player) {
+fn handle_key_press(player: &mut Player, mini_map: &Vec<Vec<bool>>) {
     if is_key_pressed(KeyCode::Escape) {
         exit(0);
     }
     if is_key_pressed(KeyCode::Up) || is_key_pressed(KeyCode::W) {
         match &player.orientation {
-            Orientation::NORTH => player.position.z -= 1,
-            _ => player.orientation = Orientation::NORTH,
+            Orientation::SOUTH => {
+                if !mini_map[(player.position.z + 1) as usize][player.position.x as usize] {
+                    player.position.z += 1;
+                }
+            }
+            Orientation::NORTH => {
+                if !mini_map[(player.position.z - 1) as usize][player.position.x as usize] {
+                    player.position.z -= 1;
+                }
+            }
+            Orientation::EAST => {
+                if !mini_map[player.position.z as usize][(player.position.x + 1) as usize] {
+                    player.position.x += 1;
+                }
+            }
+            Orientation::WEST => {
+                if !mini_map[player.position.z as usize][(player.position.x - 1) as usize] {
+                    player.position.x -= 1;
+                }
+            }
         }
     }
     if is_key_pressed(KeyCode::Down) || is_key_pressed(KeyCode::S) {
         match &player.orientation {
-            Orientation::SOUTH => player.position.z += 1,
-            _ => player.orientation = Orientation::SOUTH,
+            Orientation::SOUTH => {
+                if !mini_map[(player.position.z - 1) as usize][player.position.x as usize] {
+                    player.position.z -= 1
+                }
+            }
+            Orientation::NORTH => {
+                if !mini_map[(player.position.z + 1) as usize][player.position.x as usize] {
+                    player.position.z += 1
+                }
+            }
+            Orientation::EAST => {
+                if !mini_map[player.position.z as usize][(player.position.x - 1) as usize] {
+                    player.position.x -= 1
+                }
+            }
+            Orientation::WEST => {
+                if !mini_map[player.position.z as usize][(player.position.x + 1) as usize] {
+                    player.position.x += 1
+                }
+            }
         }
     }
     if is_key_pressed(KeyCode::Left) || is_key_pressed(KeyCode::A) {
         match &player.orientation {
-            Orientation::WEST => player.position.x -= 1,
-            _ => player.orientation = Orientation::WEST,
+            Orientation::SOUTH => player.orientation = Orientation::EAST,
+            Orientation::NORTH => player.orientation = Orientation::WEST,
+            Orientation::EAST => player.orientation = Orientation::NORTH,
+            Orientation::WEST => player.orientation = Orientation::SOUTH,
         }
     }
     if is_key_pressed(KeyCode::Right) || is_key_pressed(KeyCode::D) {
         match &player.orientation {
-            Orientation::EAST => player.position.x += 1,
-            _ => player.orientation = Orientation::EAST,
+            Orientation::SOUTH => player.orientation = Orientation::WEST,
+            Orientation::NORTH => player.orientation = Orientation::EAST,
+            Orientation::EAST => player.orientation = Orientation::SOUTH,
+            Orientation::WEST => player.orientation = Orientation::NORTH,
         }
     }
+}
+
+fn draw_player_on_mini_map(
+    player: &Player,
+    mini_map: &Vec<Vec<bool>>,
+    config: &MiniMapConfig,
+    up_texture: &Texture2D,
+) {
+    let image_size = f32::min(config.cell_width, config.cell_height);
+    let size = vec2(image_size, image_size);
+
+    let x = config.horizontal_offset as f32 + player.position.x as f32 * config.cell_width;
+    let y = config.vertical_offset as f32 + player.position.z as f32 * config.cell_height;
+
+    let rotation = match player.orientation {
+        Orientation::NORTH => 0.0,
+        Orientation::EAST => 90.0,
+        Orientation::WEST => -90.0,
+        Orientation::SOUTH => 180.0,
+    };
+
+    draw_texture_ex(
+        up_texture,
+        x,
+        y,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(size),
+            source: None,
+            rotation,
+            flip_x: false,
+            flip_y: false,
+            pivot: None,
+        },
+    );
+}
+
+fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
+    let mut spaces: Vec<(usize, usize)> = vec![];
+    for (z, line) in map.iter().enumerate() {
+        for (x, cell) in line.iter().enumerate() {
+            if !*cell {
+                spaces.push((x, z));
+            }
+        }
+    }
+    let rand_index = generate_up_to(spaces.len());
+    let x = spaces[rand_index].0 as f32;
+    let z = spaces[rand_index].1 as f32;
+    vec3(x, 1.0, z)
 }
 
 /*

@@ -28,6 +28,8 @@ impl Player {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+
 pub enum Orientation {
     NORTH,
     EAST,
@@ -53,7 +55,6 @@ pub enum Status {
     Run,
 }
 
-/*
 #[derive(Debug)]
 pub struct MiniMapConfig {
     pub cell_width: f32,
@@ -84,7 +85,7 @@ impl MiniMapConfig {
         }
     }
 }
-
+/*
 pub struct GameParams {
     pub wall_texture: Texture2D,
     pub sky_texture: Texture2D,
