@@ -173,7 +173,7 @@ fn handle_game_run(
     clear_background(WHITE);
     //player.position = Position::build(game_params.position.x, game_params.position.z);
     render_mini_map(&mini_map, &mini_map_config);
-    draw_player_on_mini_map(&player, &mini_map, &mini_map_config, arrow_texture);
+    draw_player_on_mini_map(&player, &mini_map_config, arrow_texture);
 }
 
 fn handle_key_press(player: &mut Player, mini_map: &Vec<Vec<bool>>) {
@@ -248,7 +248,6 @@ fn handle_key_press(player: &mut Player, mini_map: &Vec<Vec<bool>>) {
 
 fn draw_player_on_mini_map(
     player: &Player,
-    mini_map: &Vec<Vec<bool>>,
     config: &MiniMapConfig,
     up_texture: &Texture2D,
 ) {
@@ -260,11 +259,12 @@ fn draw_player_on_mini_map(
 
     let rotation = match player.orientation {
         Orientation::NORTH => 0.0,
-        Orientation::EAST => 90.0,
-        Orientation::WEST => -90.0,
-        Orientation::SOUTH => 180.0,
+        Orientation::EAST => 90.0_f32.to_radians(),
+        Orientation::WEST => -90.0_f32.to_radians(),
+        Orientation::SOUTH => 180.0_f32.to_radians(),
     };
 
+    let pivot = vec2(x + image_size/2.0, y + image_size/2.0);
     draw_texture_ex(
         up_texture,
         x,
@@ -276,7 +276,7 @@ fn draw_player_on_mini_map(
             rotation,
             flip_x: false,
             flip_y: false,
-            pivot: None,
+            pivot: Some(pivot),
         },
     );
 }
