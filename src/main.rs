@@ -167,13 +167,13 @@ fn handle_game_run(
     arrow_texture: &Texture2D,
 ) {
     handle_key_press(player, &mini_map);
-
     //2d
     set_default_camera();
     clear_background(WHITE);
     //player.position = Position::build(game_params.position.x, game_params.position.z);
     render_mini_map(&mini_map, &mini_map_config);
     draw_player_on_mini_map(&player, &mini_map_config, arrow_texture);
+    draw_3D_world(&player, &mini_map);
 }
 
 fn handle_key_press(player: &mut Player, mini_map: &Vec<Vec<bool>>) {
@@ -246,11 +246,7 @@ fn handle_key_press(player: &mut Player, mini_map: &Vec<Vec<bool>>) {
     }
 }
 
-fn draw_player_on_mini_map(
-    player: &Player,
-    config: &MiniMapConfig,
-    up_texture: &Texture2D,
-) {
+fn draw_player_on_mini_map(player: &Player, config: &MiniMapConfig, up_texture: &Texture2D) {
     let image_size = f32::min(config.cell_width, config.cell_height);
     let size = vec2(image_size, image_size);
 
@@ -264,7 +260,7 @@ fn draw_player_on_mini_map(
         Orientation::SOUTH => 180.0_f32.to_radians(),
     };
 
-    let pivot = vec2(x + image_size/2.0, y + image_size/2.0);
+    let pivot = vec2(x + image_size / 2.0, y + image_size / 2.0);
     draw_texture_ex(
         up_texture,
         x,
@@ -294,6 +290,46 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
     vec3(x, 1.0, z)
+}
+
+fn draw_3D_world(player: &Player, mini_map: &Vec<Vec<bool>>) {
+    //border
+    draw_rectangle_lines(
+        MAIN_MARGIN_LEFT as f32,
+        MAIN_MARGIN_TOP as f32,
+        MAIN_WIDTH as f32,
+        MAIN_HEIGHT as f32,
+        2.0,
+        BLACK,
+    );
+    //guides
+    let top_left = Point::new(MAIN_MARGIN_LEFT as f32, MAIN_MARGIN_TOP as f32);
+    let top_right = Point::new(
+        (MAIN_MARGIN_LEFT + MAIN_WIDTH) as f32,
+        MAIN_MARGIN_TOP as f32,
+    );
+
+    let middle_point = Point::new(
+        top_left.x + (MAIN_WIDTH / 2) as f32,
+        top_left.y + (MAIN_HEIGHT / 2) as f32,
+    );
+
+    draw_line(
+        top_left.x,
+        top_left.y,
+        middle_point.x,
+        middle_point.y,
+        1.0,
+        BLACK,
+    );
+    draw_line(
+        top_right.x,
+        top_right.y,
+        middle_point.x,
+        middle_point.y,
+        1.0,
+        BLACK,
+    );
 }
 
 /*
