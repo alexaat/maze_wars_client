@@ -792,6 +792,13 @@ fn handle_game_run(
     if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
         game_params.position += game_params.right * MOVE_SPEED;
     }
+    if is_mouse_button_pressed(MouseButton::Left){
+        //let player_position_3d = vec3(player.position.x, 1.0, player.position.z);
+        //let line_end = vec3(1.0, 20.0, 1.0);
+        //draw_cylinder(player_position_3d, 0.5, 0.5, 10.0, None, PURPLE);
+        //draw_line_3d(player_position_3d, line_end, RED);
+    }
+    
     let gap: f32 = 0.05;
     handle_wall_collisions(
         &game_params.mini_map,

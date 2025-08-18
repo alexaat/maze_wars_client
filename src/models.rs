@@ -98,4 +98,5 @@ pub struct GameParams {
     pub last_mouse_position: Vec2,
     pub mini_map: Vec<Vec<bool>>,
     pub world_up: Vec3,
+    //pub shots: Vec<(Vec3, Vec3)>
 }
