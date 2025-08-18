@@ -293,6 +293,51 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
 }
 
 fn draw_3D_world(player: &Player, mini_map: &Vec<Vec<bool>>) {
+    let render_target = render_target_ex(
+        MAIN_WIDTH,
+        MAIN_HEIGHT,
+        RenderTargetParams {
+            sample_count: 1,
+            depth: true,
+        },
+    );
+    
+    //3d
+    let position = vec3(player.position.x as f32, 1.0, player.position.z as f32);
+    let yaw: f32 = 1.18; //rotation around y axes
+    let pitch: f32 = 0.0; //tilt up/down
+    let front = vec3(
+        yaw.cos() * pitch.cos(),
+        pitch.sin(),
+        yaw.sin() * pitch.cos(),
+    )
+    .normalize();
+    
+    set_camera(&Camera3D {
+        render_target: Some(render_target),
+        position,
+        up: vec3(0.0, 1.0, 0.0),
+        target: position + front,
+        ..Default::default()
+    });
+    clear_background(LIGHTGRAY);
+    draw_grid(50, 1., BLACK, GRAY);
+    // draw_walls(
+    //     &mini_map,
+    //     Some(&game_params.wall_texture),
+    //     WHITE,
+    // );
+    //sky
+    let center = vec3(-20.0, 5.0, -20.0);
+    let size = vec2(100.0, 100.0);
+    // draw_plane(center, size, Some(&game_params.sky_texture), WHITE);
+    //ground
+    let center = vec3(-50.0, -0.1, -50.0);
+    let size = vec2(100.0, 100.0);
+    draw_plane(center, size, None, BROWN);
+    
+   
+    /*
     //border
     draw_rectangle_lines(
         MAIN_MARGIN_LEFT as f32,
@@ -330,6 +375,7 @@ fn draw_3D_world(player: &Player, mini_map: &Vec<Vec<bool>>) {
         1.0,
         BLACK,
     );
+    */
 }
 
 /*
