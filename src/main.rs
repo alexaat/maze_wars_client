@@ -795,13 +795,7 @@ fn handle_game_run(
     if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
         game_params.position += game_params.right * MOVE_SPEED;
     }
-    if is_mouse_button_pressed(MouseButton::Left){
-        let start = vec3(player.position.x, 1.0, player.position.z) + vec3(1.0, 0.0, 0.0);
-        let end = start + vec3(10.0, 1.0, 0.0);
-        let shot = Shot{start, end, time_out: SHOT_DURATION, color: RED};
-        game_params.shots.push(shot);
-    }
-    
+   
     let gap: f32 = 0.05;
     handle_wall_collisions(
         &game_params.mini_map,
@@ -940,7 +934,13 @@ fn handle_game_run(
             }
         }
     }
-    
+
+    if is_mouse_button_pressed(MouseButton::Left){
+        let start = vec3(player.position.x, 0.95, player.position.z) + game_params.front/10.0;
+        let end = start + game_params.front*100.0;
+        let shot = Shot{start, end, time_out: SHOT_DURATION, color: RED};
+        game_params.shots.push(shot);
+    }
     draw_shots(&game_params.shots);
     remove_shots(&mut game_params.shots);
     
