@@ -104,6 +104,9 @@ fn init_game_params() -> GameParams {
     let last_mouse_position: Vec2 = mouse_position().into();
 
     let shots = vec![];
+    let mut shot_shields = vec![];
+    //10, 0, 1
+    shot_shields.push(ShotShield::new(vec3(9.5, 0.5, 0.5), vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0)));
 
     GameParams {
         wall_texture,
@@ -120,7 +123,8 @@ fn init_game_params() -> GameParams {
         last_mouse_position,
         mini_map,
         world_up,
-        shots
+        shots,
+        shot_shields
     }
 }
 fn parse_map(file_path: &str) -> Result<Vec<Vec<bool>>, io::Error> {
@@ -166,6 +170,7 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
     vec3(x, 1.0, z)
+    //vec3(1.0, 1.0, 1.0)
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -935,15 +940,50 @@ fn handle_game_run(
         }
     }
 
+
+
+
     if is_mouse_button_pressed(MouseButton::Left){
+
+        let mut closest_hit_option: Option<Hit> = None;
+
         let start = vec3(player.position.x, 0.95, player.position.z) + game_params.front/10.0;
-        let end = start + game_params.front*100.0;
+
+
+        for shield in &game_params.shot_shields{
+            let hit_option = shield.hit(start, game_params.front);
+            if let Some(hit) = hit_option{        
+                if let Some(ref closest_hit) = closest_hit_option {
+                    if hit.t < closest_hit.t {
+                        closest_hit_option = Some(hit); 
+                    }
+                }else {
+                    closest_hit_option = Some(hit);
+                }
+            };
+        }
+
+        //let shield = game_params.shot_shields[0].clone();       
+        //draw_sphere(shield.q, 0.05, None, PURPLE);
+        //draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
+        //draw_sphere(shield.q + shield.v, 0.05, None, BLUE);       
+       
+
+        let end = if let Some(closest_hit) = closest_hit_option{
+            //println!("hit: {:?}",closest_hit.p);
+            closest_hit.p
+        } else {
+            //println!("miss");
+            start + game_params.front*MAX_SHOT_RANGE
+        };
+
         let shot = Shot{start, end, time_out: SHOT_DURATION, color: RED};
         game_params.shots.push(shot);
     }
     draw_shots(&game_params.shots);
     remove_shots(&mut game_params.shots);
-    
+
+   
     if let Ok(message_to_server) = serde_json::to_string(player) {
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     }

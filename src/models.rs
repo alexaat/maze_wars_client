@@ -3,6 +3,7 @@ use macroquad::{color::Color, texture::RenderTarget};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uuid::Uuid;
+use crate::preferences::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Player {
@@ -98,7 +99,8 @@ pub struct GameParams {
     pub last_mouse_position: Vec2,
     pub mini_map: Vec<Vec<bool>>,
     pub world_up: Vec3,
-    pub shots: Vec<Shot>
+    pub shots: Vec<Shot>,
+    pub shot_shields: Vec<ShotShield>
 }
 
 #[derive(Debug, Clone)]
@@ -109,3 +111,44 @@ pub struct Shot{
     pub color: Color
 }
 
+#[derive(Debug, Clone)]
+pub struct ShotShield{
+    pub q: Vec3, //origin
+    pub u: Vec3, //horizontal vector
+    pub v: Vec3 //vertical vector
+}
+impl ShotShield{
+    pub fn new(q: Vec3, u: Vec3, v: Vec3) -> Self{
+        Self { q, u, v }
+    }
+
+    pub fn hit(&self, origin: Vec3, direction: Vec3) -> Option<Hit>{
+        let n = self.u.cross(self.v);       
+        let denominator = n.dot(direction);
+        if denominator.abs() < MIN_SHOT_HIT_TIME{
+            return None;
+        }
+        let t = ((n.dot(self.q) - n.dot(origin)))/denominator;
+        if t > MAX_SHOT_HIT_TIME {
+            return None;
+        }
+        let p = origin + direction*t;
+        //test for intersection
+        let w = p - self.q;
+        //projection on u
+        let proj_on_u = (w.dot(self.u))/self.u.length();
+        if proj_on_u < 0.0 || proj_on_u > self.u.length() {
+            return None;
+        }
+        let proj_on_v = (w.dot(self.v))/self.v.length();
+        if proj_on_v < 0.0 || proj_on_v > self.v.length() {
+            return None;
+        }
+        Some(Hit{t,p})
+    }
+}
+
+pub struct Hit{
+    pub t: f32, 
+    pub p: Vec3
+}

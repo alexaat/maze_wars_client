@@ -17,3 +17,7 @@ pub const SCORE_MARGIN_LEFT: u32 = 360;
 pub const MOVE_SPEED: f32 = 0.025;
 pub const LOOK_SPEED: f32 = 0.4;
 pub const SHOT_DURATION: i32 = 15;
+pub const MAX_SHOT_RANGE: f32 = 500.0;
+pub const MAX_SHOT_HIT_TIME: f32 = 100000.0;
+pub const MIN_SHOT_HIT_TIME: f32 = 100000.0;
+
