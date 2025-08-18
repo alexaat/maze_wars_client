@@ -16,3 +16,4 @@ pub const SCORE_MARGIN_LEFT: u32 = 360;
 
 pub const MOVE_SPEED: f32 = 0.025;
 pub const LOOK_SPEED: f32 = 0.4;
+pub const SHOT_DURATION: i32 = 15;

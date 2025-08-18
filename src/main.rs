@@ -103,6 +103,8 @@ fn init_game_params() -> GameParams {
     let position = generate_position(&mini_map);
     let last_mouse_position: Vec2 = mouse_position().into();
 
+    let shots = vec![];
+
     GameParams {
         wall_texture,
         sky_texture,
@@ -118,6 +120,7 @@ fn init_game_params() -> GameParams {
         last_mouse_position,
         mini_map,
         world_up,
+        shots
     }
 }
 fn parse_map(file_path: &str) -> Result<Vec<Vec<bool>>, io::Error> {
@@ -793,10 +796,10 @@ fn handle_game_run(
         game_params.position += game_params.right * MOVE_SPEED;
     }
     if is_mouse_button_pressed(MouseButton::Left){
-        //let player_position_3d = vec3(player.position.x, 1.0, player.position.z);
-        //let line_end = vec3(1.0, 20.0, 1.0);
-        //draw_cylinder(player_position_3d, 0.5, 0.5, 10.0, None, PURPLE);
-        //draw_line_3d(player_position_3d, line_end, RED);
+        let start = vec3(player.position.x, 1.0, player.position.z) + vec3(1.0, 0.0, 0.0);
+        let end = start + vec3(10.0, 1.0, 0.0);
+        let shot = Shot{start, end, time_out: SHOT_DURATION, color: RED};
+        game_params.shots.push(shot);
     }
     
     let gap: f32 = 0.05;
@@ -937,6 +940,10 @@ fn handle_game_run(
             }
         }
     }
+    
+    draw_shots(&game_params.shots);
+    remove_shots(&mut game_params.shots);
+    
     if let Ok(message_to_server) = serde_json::to_string(player) {
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     }
@@ -1008,4 +1015,16 @@ fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams) {
             );
         }
     }
+}
+fn draw_shots(shots: &Vec<Shot>) {
+    for shot in shots{       
+        draw_line_3d(shot.start, shot.end, shot.color);       
+    }
+}
+fn remove_shots(shots: &mut Vec<Shot>){
+    for i in 0..shots.len(){
+        shots[i].time_out -= 1;
+    }
+    let filtered: Vec<Shot> = shots.iter().filter(|shot| shot.time_out > 0).cloned().collect();
+    *shots = filtered;
 }
