@@ -39,6 +39,14 @@ async fn main() {
     set_cursor_grab(true);
     show_mouse(false);
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
+    // test
+    // let mut enemy = Player::new();
+    // enemy.name = "Sam".to_string();
+    // enemy.position = Position::build(7.0, 1.0);
+    // let enem = Some(vec![enemy]);
+    // enemies = Arc::new(Mutex::new(enem));    
+    //end test
+
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
     start_server_listener(Arc::clone(&socket), Arc::clone(&enemies));
     loop {
@@ -108,6 +116,10 @@ fn init_game_params() -> GameParams {
     //10, 0, 1
     let shield = Shield::new(vec3(9.5, 0.5, 0.5), vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0));
     hittables.push(Hittable::Wall(shield));
+    // let mut enemy = Player::new();
+    // enemy.name = "Sam".to_string();
+    // enemy.position = Position::build(7.0, 1.0);
+    // hittables.push(Hittable::Enemy(enemy));
 
 
     GameParams {
@@ -171,8 +183,8 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-   vec3(x, 1.0, z)
-   // vec3(1.0, 1.0, 1.0)
+   //vec3(x, PLAYER_HEIGHT, z)
+    vec3(1.0, PLAYER_HEIGHT, 1.0)
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -815,13 +827,13 @@ fn handle_game_run(
     game_params.last_mouse_position = mouse_position;
     game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
     game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
-    game_params.pitch = if game_params.pitch > 0.35 {
-        0.35
+    game_params.pitch = if game_params.pitch > MAX_PITCH {
+        MAX_PITCH
     } else {
         game_params.pitch
     };
-    game_params.pitch = if game_params.pitch < -0.35 {
-        -0.35
+    game_params.pitch = if game_params.pitch < MIN_PITCH {
+       MIN_PITCH
     } else {
         game_params.pitch
     };
@@ -833,7 +845,7 @@ fn handle_game_run(
     .normalize();
     game_params.right = game_params.front.cross(game_params.world_up).normalize();
     let up = game_params.right.cross(game_params.front).normalize();
-    game_params.position.y = 1.0;
+    game_params.position.y = PLAYER_HEIGHT;
     //2d
     set_default_camera();
     clear_background(WHITE);
@@ -933,17 +945,14 @@ fn handle_game_run(
                 let image = Image { bytes, width: width as u16, height };
                 let texture = Texture2D::from_image(&image);
                 draw_sphere(
-                    vec3(enemy.position.x, 1.0, enemy.position.z),
-                    0.05,
+                    vec3(enemy.position.x, PLAYER_HEIGHT, enemy.position.z),
+                    ENEMY_RADIUS,
                     Some(&texture),
                     WHITE,
                 );
             }
         }
     }
-
-
-
 
     if is_mouse_button_pressed(MouseButton::Left){
 
@@ -964,14 +973,28 @@ fn handle_game_run(
                         closest_hit_option = Some(hit);
                     }
                 };
-            } else {
-                //implement for enemy
+            } 
+            //implement for enemy
+            if let Hittable::Enemy(player) = hittable{
+                let hit_option = player.hit(start, game_params.front);
+                if let Some(hit) = hit_option{   
+                    if let Some(ref closest_hit) = closest_hit_option {
+                        if hit.t < closest_hit.t {
+                            closest_hit_option = Some(hit); 
+                        }
+                    } else {
+                        closest_hit_option = Some(hit);
+                    }
+                }
             }
+            
         }
     
-
-        let end = if let Some(closest_hit) = closest_hit_option{
-            println!("hit: {:?}",closest_hit.p);
+        let end = if let Some(closest_hit) = closest_hit_option{           
+            match closest_hit.hittable {
+                Hittable::Wall(_) =>  println!("hit whall: {:?}",closest_hit.p),
+                Hittable::Enemy(player) => println!("hit enemy: {:?}", player.name)
+            }
             closest_hit.p
         } else {
             println!("miss");

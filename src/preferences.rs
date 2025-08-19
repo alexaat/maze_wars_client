@@ -21,3 +21,9 @@ pub const MAX_SHOT_RANGE: f32 = 500.0;
 pub const MAX_SHOT_HIT_TIME: f32 = 100000.0;
 pub const MIN_SHOT_HIT_TIME: f32 = 0.000001;
 
+pub const ENEMY_RADIUS: f32 = 0.05;
+pub const PLAYER_HEIGHT: f32 = 1.0;
+
+pub const MAX_PITCH: f32 = 0.35;
+pub const MIN_PITCH: f32 = -0.35;
+

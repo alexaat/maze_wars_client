@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uuid::Uuid;
 use crate::preferences::*;
+use macroquad::prelude::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Player {
@@ -26,6 +27,50 @@ impl Player {
             orientation: 0.0,
             current_map: String::from(""),
         }
+    }
+    //function that when player is used as enemy calculate if it was hit by other player
+    pub fn hit(&self, origin: Vec3, direction: Vec3) -> Option<Hit>{
+        let hittable = Hittable::Enemy(self.clone());
+        //calculate components
+       
+        let a = direction.dot(direction);
+        if a.abs() < MIN_SHOT_HIT_TIME{
+            return None;
+        }        
+        let position = vec3(self.position.x, PLAYER_HEIGHT, self.position.z);
+        let c_o = position - origin;
+        let b = -2.0 * (c_o.dot(direction));
+        let c = c_o.dot(c_o) - ENEMY_RADIUS*ENEMY_RADIUS; 
+        let discriminant = b*b - 4.0*a*c;
+        if discriminant < 0.0 {
+            return None;
+        }
+        let discriminant_root = discriminant.sqrt();
+        if discriminant_root == 0.0 {
+            let t = -b/(2.0*a);
+            if t > 0.0 {
+                let p = origin + t*direction;
+                return Some(Hit{t, p, hittable});
+            } else {
+                return None;
+            }
+        }
+        let t1= (-b - discriminant_root)/(2.0*a);
+        let t2= (-b + discriminant_root)/(2.0*a);
+        if t1 < 0.0 && t2 < 0.0{
+            return None;
+        }
+        let t = if t1 > 0.0 {
+            if t2 > 0.0 {
+                f32::min(t1, t2)
+            } else {
+                t1
+            } 
+        } else {
+            t2
+        };
+        let p = origin + t*direction;
+        Some(Hit{t,p, hittable})
     }
 }
 
@@ -145,7 +190,8 @@ impl Shield{
         if proj_on_v < 0.0 || proj_on_v > self.v.length() {
             return None;
         }
-        Some(Hit{t,p})
+        let hittable = Hittable::Wall(self.clone());
+        Some(Hit{t,p, hittable})
     }
 }
 
@@ -153,6 +199,7 @@ impl Shield{
 pub struct Hit{
     pub t: f32, 
     pub p: Vec3,
+    pub hittable: Hittable
 }
 
 #[derive(Debug, Clone)]
