@@ -104,9 +104,11 @@ fn init_game_params() -> GameParams {
     let last_mouse_position: Vec2 = mouse_position().into();
 
     let shots = vec![];
-    let mut shot_shields = vec![];
+    let mut hittables: Vec<Hittable> = vec![];
     //10, 0, 1
-    shot_shields.push(ShotShield::new(vec3(9.5, 0.5, 0.5), vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0)));
+    let shield = Shield::new(vec3(9.5, 0.5, 0.5), vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0));
+    hittables.push(Hittable::Wall(shield));
+
 
     GameParams {
         wall_texture,
@@ -124,7 +126,7 @@ fn init_game_params() -> GameParams {
         mini_map,
         world_up,
         shots,
-        shot_shields
+        hittables
     }
 }
 fn parse_map(file_path: &str) -> Result<Vec<Vec<bool>>, io::Error> {
@@ -169,8 +171,8 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-    vec3(x, 1.0, z)
-    //vec3(1.0, 1.0, 1.0)
+   vec3(x, 1.0, z)
+   // vec3(1.0, 1.0, 1.0)
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -950,30 +952,29 @@ fn handle_game_run(
         let start = vec3(player.position.x, 0.95, player.position.z) + game_params.front/10.0;
 
 
-        for shield in &game_params.shot_shields{
-            let hit_option = shield.hit(start, game_params.front);
-            if let Some(hit) = hit_option{        
-                if let Some(ref closest_hit) = closest_hit_option {
-                    if hit.t < closest_hit.t {
-                        closest_hit_option = Some(hit); 
+        for hittable in &game_params.hittables{             
+            if let Hittable::Wall(shield) = hittable{                 
+                let hit_option = shield.hit(start, game_params.front);
+                if let Some(hit) = hit_option{        
+                    if let Some(ref closest_hit) = closest_hit_option {
+                        if hit.t < closest_hit.t {
+                            closest_hit_option = Some(hit); 
+                        }
+                    }else {
+                        closest_hit_option = Some(hit);
                     }
-                }else {
-                    closest_hit_option = Some(hit);
-                }
-            };
+                };
+            } else {
+                //implement for enemy
+            }
         }
-
-        //let shield = game_params.shot_shields[0].clone();       
-        //draw_sphere(shield.q, 0.05, None, PURPLE);
-        //draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
-        //draw_sphere(shield.q + shield.v, 0.05, None, BLUE);       
-       
+    
 
         let end = if let Some(closest_hit) = closest_hit_option{
-            //println!("hit: {:?}",closest_hit.p);
+            println!("hit: {:?}",closest_hit.p);
             closest_hit.p
         } else {
-            //println!("miss");
+            println!("miss");
             start + game_params.front*MAX_SHOT_RANGE
         };
 
@@ -983,7 +984,15 @@ fn handle_game_run(
     draw_shots(&game_params.shots);
     remove_shots(&mut game_params.shots);
 
+    // let hittable = game_params.hittables[0].clone(); 
+    // if let Hittable::Wall(shield) = hittable{
+    //     draw_sphere(shield.q, 0.05, None, PURPLE);
+    //     draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
+    //     draw_sphere(shield.q + shield.v, 0.05, None, BLUE);
+    // }  
    
+
+
     if let Ok(message_to_server) = serde_json::to_string(player) {
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     }

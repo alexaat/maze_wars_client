@@ -100,7 +100,7 @@ pub struct GameParams {
     pub mini_map: Vec<Vec<bool>>,
     pub world_up: Vec3,
     pub shots: Vec<Shot>,
-    pub shot_shields: Vec<ShotShield>
+    pub hittables: Vec<Hittable>
 }
 
 #[derive(Debug, Clone)]
@@ -112,24 +112,25 @@ pub struct Shot{
 }
 
 #[derive(Debug, Clone)]
-pub struct ShotShield{
+pub struct Shield{
     pub q: Vec3, //origin
     pub u: Vec3, //horizontal vector
-    pub v: Vec3 //vertical vector
+    pub v: Vec3 //vertical vector   
 }
-impl ShotShield{
+
+impl Shield{
     pub fn new(q: Vec3, u: Vec3, v: Vec3) -> Self{
         Self { q, u, v }
     }
 
     pub fn hit(&self, origin: Vec3, direction: Vec3) -> Option<Hit>{
-        let n = self.u.cross(self.v);       
+        let n = self.u.cross(self.v);
         let denominator = n.dot(direction);
-        if denominator.abs() < MIN_SHOT_HIT_TIME{
+        if denominator.abs() < MIN_SHOT_HIT_TIME{           
             return None;
         }
         let t = ((n.dot(self.q) - n.dot(origin)))/denominator;
-        if t > MAX_SHOT_HIT_TIME {
+        if t > MAX_SHOT_HIT_TIME {           
             return None;
         }
         let p = origin + direction*t;
@@ -148,7 +149,14 @@ impl ShotShield{
     }
 }
 
+#[derive(Debug)]
 pub struct Hit{
     pub t: f32, 
-    pub p: Vec3
+    pub p: Vec3,
+}
+
+#[derive(Debug, Clone)]
+pub enum Hittable {
+    Wall(Shield),
+    Enemy(Player)
 }
