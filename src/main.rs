@@ -183,8 +183,8 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-   //vec3(x, PLAYER_HEIGHT, z)
-    vec3(1.0, PLAYER_HEIGHT, 1.0)
+   vec3(x, PLAYER_HEIGHT, z)
+   // vec3(1.0, PLAYER_HEIGHT, 1.0)
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -992,7 +992,7 @@ fn handle_game_run(
     
         let end = if let Some(closest_hit) = closest_hit_option{           
             match closest_hit.hittable {
-                Hittable::Wall(_) =>  println!("hit whall: {:?}",closest_hit.p),
+                Hittable::Wall(_) =>  println!("hit wall: {:?}",closest_hit.p),
                 Hittable::Enemy(player) => println!("hit enemy: {:?}", player.name)
             }
             closest_hit.p

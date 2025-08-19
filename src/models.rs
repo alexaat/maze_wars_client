@@ -175,7 +175,7 @@ impl Shield{
             return None;
         }
         let t = ((n.dot(self.q) - n.dot(origin)))/denominator;
-        if t > MAX_SHOT_HIT_TIME {           
+        if t < MIN_SHOT_HIT_TIME || t > MAX_SHOT_HIT_TIME{
             return None;
         }
         let p = origin + direction*t;
