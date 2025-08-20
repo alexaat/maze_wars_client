@@ -14,8 +14,8 @@ pub const NAME_MARGIN_TOP: u32 = 595;
 pub const NAME_MARGIN_LEFT: u32 = 190;
 pub const SCORE_MARGIN_LEFT: u32 = 360;
 
-pub const MOVE_SPEED: f32 = 0.025;
-pub const LOOK_SPEED: f32 = 0.4;
+pub const MOVE_SPEED: f32 = 0.225;
+pub const LOOK_SPEED: f32 = 0.01;
 pub const SHOT_DURATION: i32 = 15;
 pub const MAX_SHOT_RANGE: f32 = 500.0;
 pub const MAX_SHOT_HIT_TIME: f32 = 100000.0;
@@ -26,4 +26,3 @@ pub const PLAYER_HEIGHT: f32 = 1.0;
 
 pub const MAX_PITCH: f32 = 0.35;
 pub const MIN_PITCH: f32 = -0.35;
-

@@ -44,7 +44,7 @@ async fn main() {
     // enemy.name = "Sam".to_string();
     // enemy.position = Position::build(7.0, 1.0);
     // let enem = Some(vec![enemy]);
-    // enemies = Arc::new(Mutex::new(enem));    
+    // enemies = Arc::new(Mutex::new(enem));
     //end test
 
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
@@ -60,7 +60,7 @@ async fn main() {
                 &mut player,
                 &mut game_params,
                 &socket,
-                Arc::clone(&enemies)
+                Arc::clone(&enemies),
             ),
         }
         next_frame().await;
@@ -72,8 +72,7 @@ fn init_game_params() -> GameParams {
     let arrow_texture =
         Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
     let eye_texture =
-        Image::from_file_with_format(include_bytes!("../assets/eye_texture.png"), None)
-            .unwrap();
+        Image::from_file_with_format(include_bytes!("../assets/eye_texture.png"), None).unwrap();
 
     let mini_map = match parse_map("assets/map_one.txt") {
         Ok(map) => map,
@@ -112,15 +111,14 @@ fn init_game_params() -> GameParams {
     let last_mouse_position: Vec2 = mouse_position().into();
 
     let shots = vec![];
+
     let mut hittables: Vec<Hittable> = vec![];
-    //10, 0, 1
-    let shield = Shield::new(vec3(9.5, 0.5, 0.5), vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0));
-    hittables.push(Hittable::Wall(shield));
+    add_shields(&mut hittables, &mini_map);
+
     // let mut enemy = Player::new();
     // enemy.name = "Sam".to_string();
     // enemy.position = Position::build(7.0, 1.0);
     // hittables.push(Hittable::Enemy(enemy));
-
 
     GameParams {
         wall_texture,
@@ -138,7 +136,7 @@ fn init_game_params() -> GameParams {
         mini_map,
         world_up,
         shots,
-        hittables
+        hittables,
     }
 }
 fn parse_map(file_path: &str) -> Result<Vec<Vec<bool>>, io::Error> {
@@ -183,8 +181,8 @@ fn generate_position(map: &Vec<Vec<bool>>) -> Vec3 {
     let rand_index = generate_up_to(spaces.len());
     let x = spaces[rand_index].0 as f32;
     let z = spaces[rand_index].1 as f32;
-   vec3(x, PLAYER_HEIGHT, z)
-   // vec3(1.0, PLAYER_HEIGHT, 1.0)
+    vec3(x, PLAYER_HEIGHT, z)
+    //vec3(1.0, PLAYER_HEIGHT, 1.0)
 }
 fn draw_player_on_mini_map(
     player: &Player,
@@ -791,7 +789,7 @@ fn handle_game_run(
     player: &mut Player,
     game_params: &mut GameParams,
     socket: &Arc<UdpSocket>,
-    enemies: Arc<Mutex<Option<Vec<Player>>>>    
+    enemies: Arc<Mutex<Option<Vec<Player>>>>,
 ) {
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
@@ -814,7 +812,7 @@ fn handle_game_run(
     if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
         game_params.position += game_params.right * MOVE_SPEED;
     }
-   
+
     let gap: f32 = 0.05;
     handle_wall_collisions(
         &game_params.mini_map,
@@ -833,7 +831,7 @@ fn handle_game_run(
         game_params.pitch
     };
     game_params.pitch = if game_params.pitch < MIN_PITCH {
-       MIN_PITCH
+        MIN_PITCH
     } else {
         game_params.pitch
     };
@@ -930,19 +928,22 @@ fn handle_game_run(
     if let Ok(enemies_result) = enemies.lock() {
         if let Some(enemies) = enemies_result.clone() {
             for enemy in enemies {
-
                 let bytes = game_params.eye_texture.bytes.clone();
-                let width =  game_params.eye_texture.width as u32;
+                let width = game_params.eye_texture.width as u32;
                 let height = game_params.eye_texture.height;
 
                 let a = enemy.orientation.to_degrees() as u32;
-                let index = a*width*4;
+                let index = a * width * 4;
                 let mut top_half = bytes[..index as usize].to_vec();
-                let mut bottom_half = bytes[index as usize ..].to_vec();
+                let mut bottom_half = bytes[index as usize..].to_vec();
                 let mut bytes = vec![];
                 bytes.append(&mut bottom_half);
                 bytes.append(&mut top_half);
-                let image = Image { bytes, width: width as u16, height };
+                let image = Image {
+                    bytes,
+                    width: width as u16,
+                    height,
+                };
                 let texture = Texture2D::from_image(&image);
                 draw_sphere(
                     vec3(enemy.position.x, PLAYER_HEIGHT, enemy.position.z),
@@ -954,67 +955,71 @@ fn handle_game_run(
         }
     }
 
-    if is_mouse_button_pressed(MouseButton::Left){
-
+    if is_mouse_button_pressed(MouseButton::Left) {
         let mut closest_hit_option: Option<Hit> = None;
 
-        let start = vec3(player.position.x, 0.95, player.position.z) + game_params.front/10.0;
+        let start = vec3(player.position.x, 0.95, player.position.z) + game_params.front / 10.0;
 
-
-        for hittable in &game_params.hittables{             
-            if let Hittable::Wall(shield) = hittable{                 
+        for hittable in &game_params.hittables {
+            if let Hittable::Wall(shield) = hittable {
                 let hit_option = shield.hit(start, game_params.front);
-                if let Some(hit) = hit_option{        
+                if let Some(hit) = hit_option {
                     if let Some(ref closest_hit) = closest_hit_option {
                         if hit.t < closest_hit.t {
-                            closest_hit_option = Some(hit); 
+                            closest_hit_option = Some(hit);
                         }
-                    }else {
+                    } else {
                         closest_hit_option = Some(hit);
                     }
                 };
-            } 
+            }
             //implement for enemy
-            if let Hittable::Enemy(player) = hittable{
+            if let Hittable::Enemy(player) = hittable {
                 let hit_option = player.hit(start, game_params.front);
-                if let Some(hit) = hit_option{   
+                if let Some(hit) = hit_option {
                     if let Some(ref closest_hit) = closest_hit_option {
                         if hit.t < closest_hit.t {
-                            closest_hit_option = Some(hit); 
+                            closest_hit_option = Some(hit);
                         }
                     } else {
                         closest_hit_option = Some(hit);
                     }
                 }
             }
-            
         }
-    
-        let end = if let Some(closest_hit) = closest_hit_option{           
+
+        let end = if let Some(closest_hit) = closest_hit_option {
             match closest_hit.hittable {
-                Hittable::Wall(_) =>  println!("hit wall: {:?}",closest_hit.p),
-                Hittable::Enemy(player) => println!("hit enemy: {:?}", player.name)
+                Hittable::Wall(_) => println!("hit wall: {:?}", closest_hit.p),
+                Hittable::Enemy(player) => println!("hit enemy: {:?}", player.name),
             }
             closest_hit.p
         } else {
             println!("miss");
-            start + game_params.front*MAX_SHOT_RANGE
+            start + game_params.front * MAX_SHOT_RANGE
         };
 
-        let shot = Shot{start, end, time_out: SHOT_DURATION, color: RED};
+        let shot = Shot {
+            start,
+            end,
+            time_out: SHOT_DURATION,
+            color: RED,
+        };
         game_params.shots.push(shot);
     }
     draw_shots(&game_params.shots);
     remove_shots(&mut game_params.shots);
 
-    // let hittable = game_params.hittables[0].clone(); 
-    // if let Hittable::Wall(shield) = hittable{
-    //     draw_sphere(shield.q, 0.05, None, PURPLE);
-    //     draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
-    //     draw_sphere(shield.q + shield.v, 0.05, None, BLUE);
-    // }  
-   
-
+    //draw hittables
+    /*
+    for hittable in &game_params.hittables {
+        if let Hittable::Wall(shield) = hittable {
+            draw_sphere(shield.q, 0.05, None, PURPLE);
+            draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
+            draw_sphere(shield.q + shield.v, 0.05, None, BLUE);
+        }
+    }
+    */
 
     if let Ok(message_to_server) = serde_json::to_string(player) {
         let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
@@ -1089,14 +1094,94 @@ fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams) {
     }
 }
 fn draw_shots(shots: &Vec<Shot>) {
-    for shot in shots{       
-        draw_line_3d(shot.start, shot.end, shot.color);       
+    for shot in shots {
+        draw_line_3d(shot.start, shot.end, shot.color);
     }
 }
-fn remove_shots(shots: &mut Vec<Shot>){
-    for i in 0..shots.len(){
+fn remove_shots(shots: &mut Vec<Shot>) {
+    for i in 0..shots.len() {
         shots[i].time_out -= 1;
     }
-    let filtered: Vec<Shot> = shots.iter().filter(|shot| shot.time_out > 0).cloned().collect();
+    let filtered: Vec<Shot> = shots
+        .iter()
+        .filter(|shot| shot.time_out > 0)
+        .cloned()
+        .collect();
     *shots = filtered;
+}
+fn add_shields(hittables: &mut Vec<Hittable>, mini_map: &Vec<Vec<bool>>) {
+    for (z, row) in mini_map.iter().enumerate() {
+        for (x, cell) in row.iter().enumerate() {
+            if !cell {
+                //check cell up
+                if mini_map[z - 1][x] {
+                    let shield = Shield::new(
+                        vec3(x as f32 - 0.5, 0.5, z as f32 - 0.5),
+                        vec3(1.0, 0.0, 0.0),
+                        vec3(0.0, 1.0, 0.0),
+                    );
+                    hittables.push(Hittable::Wall(shield));
+                }
+                //check cell right
+                if mini_map[z][x + 1] {
+                    let shield = Shield::new(
+                        vec3(x as f32 + 0.5, 0.5, z as f32 - 0.5),
+                        vec3(0.0, 0.0, 1.0),
+                        vec3(0.0, 1.0, 0.0),
+                    );
+                    hittables.push(Hittable::Wall(shield));
+                }
+                //check cell bottom
+                if mini_map[z + 1][x] {
+                    let shield = Shield::new(
+                        vec3(x as f32 - 0.5, 0.5, z as f32 + 0.5),
+                        vec3(1.0, 0.0, 0.0),
+                        vec3(0.0, 1.0, 0.0),
+                    );
+                    hittables.push(Hittable::Wall(shield));
+                }
+                //check cell left
+                if mini_map[z][x - 1] {
+                    let shield = Shield::new(
+                        vec3(x as f32 - 0.5, 0.5, z as f32 - 0.5),
+                        vec3(0.0, 0.0, 1.0),
+                        vec3(0.0, 1.0, 0.0),
+                    );
+                    hittables.push(Hittable::Wall(shield));
+                }
+            }
+        }
+    }
+
+    //cell down from (1, 2)
+    // let shield = Shield::new(
+    //     vec3(1.5, 0.5, 1.5),
+    //     vec3(1.0, 0.0, 0.0),
+    //     vec3(0.0, 1.0, 0.0),
+    // );
+    // hittables.push(Hittable::Wall(shield));
+
+    // //cell up from (1,1)
+    // let shield = Shield::new(
+    //     vec3(0.5, 0.5, 0.5),
+    //     vec3(1.0, 0.0, 0.0),
+    //     vec3(0.0, 1.0, 0.0),
+    // );
+    // hittables.push(Hittable::Wall(shield));
+
+    // //cell up from (1,2)
+    // let shield = Shield::new(
+    //     vec3(1.5, 0.5, 0.5),
+    //     vec3(1.0, 0.0, 0.0),
+    //     vec3(0.0, 1.0, 0.0),
+    // );
+    // hittables.push(Hittable::Wall(shield));
+
+    //9, 0, 1
+    // let shield = Shield::new(
+    //     vec3(9.5, 0.5, 0.5),
+    //     vec3(0.0, 0.0, 1.0),
+    //     vec3(0.0, 1.0, 0.0),
+    // );
+    // hittables.push(Hittable::Wall(shield));
 }
