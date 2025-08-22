@@ -60,6 +60,9 @@ async fn main() {
         Arc::clone(&game_params.hittables),
     );
 
+    //update server on the first round of the loop
+    let mut is_first_tun = true;
+
     loop {
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
@@ -72,6 +75,7 @@ async fn main() {
                 &mut game_params,
                 &socket,
                 Arc::clone(&enemies),
+                &mut is_first_tun
             ),
         }
         next_frame().await;
@@ -807,8 +811,14 @@ fn handle_game_run(
     game_params: &mut GameParams,
     socket: &Arc<UdpSocket>,
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
+    is_first_tun: &mut bool
 ) {
     let mut require_update = false;
+    if *is_first_tun {
+        *is_first_tun = false;
+        require_update = true;
+    }
+   
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
 
