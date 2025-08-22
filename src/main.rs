@@ -813,11 +813,12 @@ fn handle_game_run(
 
     match player_ref.lock() {
         Ok(mut player) => {
-            let _player = &player.clone(); //to use in json parse
+            let mut _player = player.clone(); //to use in json parse
             if is_key_pressed(KeyCode::Escape) {
                 //player.is_active = false;
-                player.player_status = PlayerStatus::Disconnent;
-                if let Ok(message_to_server) = serde_json::to_string(_player) {
+                _player.player_status = PlayerStatus::Disconnent;
+                if let Ok(message_to_server) = serde_json::to_string(&_player) {
+                    //println!("{message_to_server}");
                     let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
                 }
                 exit(0);
@@ -1086,7 +1087,7 @@ fn handle_game_run(
             }
             */
 
-            if let Ok(message_to_server) = serde_json::to_string(_player) {
+            if let Ok(message_to_server) = serde_json::to_string(&_player) {
                 send_message_to_server(socket, server_addr, &message_to_server);
             }
         }
