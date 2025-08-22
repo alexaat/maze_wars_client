@@ -31,11 +31,16 @@ async fn main() {
     //send request from client:  echo -n 'Hello from client' | nc -u 127.0.0.1 4000
     let mut player = Player::new();
     player.current_map = String::from("map_one");
+
     let mut status = Status::EnterIP;
-    request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
+    //request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
     let mut server_addr = String::new();
     //init game engine
     let mut game_params = init_game_params();
+
+    player.mini_map = game_params.mini_map.clone();
+    let player = Arc::new(Mutex::new(player));
+
     set_cursor_grab(true);
     show_mouse(false);
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
@@ -48,16 +53,22 @@ async fn main() {
     //end test
 
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
-    start_server_listener(Arc::clone(&socket), Arc::clone(&enemies));
+    start_server_listener(
+        Arc::clone(&socket),
+        Arc::clone(&enemies),
+        Arc::clone(&player),
+        Arc::clone(&game_params.hittables),
+    );
+
     loop {
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
             Status::EnterName => {
-                handle_name_input(&mut status, &mut player, &server_addr);
+                handle_name_input(&mut status, player.clone(), &server_addr);
             }
             Status::Run => handle_game_run(
                 &server_addr,
-                &mut player,
+                player.clone(),
                 &mut game_params,
                 &socket,
                 Arc::clone(&enemies),
@@ -112,8 +123,8 @@ fn init_game_params() -> GameParams {
 
     let shots = vec![];
 
-    let mut hittables: Vec<Hittable> = vec![];
-    add_shields(&mut hittables, &mini_map);
+    let hittables = Arc::new(Mutex::new(vec![]));
+    add_shields(Arc::clone(&hittables), &mini_map);
 
     // let mut enemy = Player::new();
     // enemy.name = "Sam".to_string();
@@ -752,32 +763,38 @@ fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
         exit(0);
     }
 }
-fn handle_name_input(status: &mut Status, player: &mut Player, server_addr: &String) {
+fn handle_name_input(status: &mut Status, player_ref: Arc<Mutex<Player>>, server_addr: &String) {
     clear_background(BLACK);
-    let mut server_addr_display =
-        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
-    server_addr_display.push_str(server_addr);
 
-    let mut player_name_display = "Enter your name:     ".to_string();
-    player_name_display.push_str(&player.name);
+    match player_ref.lock() {
+        Ok(mut player) => {
+            let mut server_addr_display =
+                "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+            server_addr_display.push_str(server_addr);
 
-    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
-    draw_text(player_name_display.as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
+            let mut player_name_display = "Enter your name:     ".to_string();
+            player_name_display.push_str(&player.name);
 
-    if let Some(c) = get_char_pressed() {
-        if c == 3 as char || c == 13 as char {
-            if player.name.len() > 2 {
-                *status = Status::Run;
-                return;
+            draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+            draw_text(player_name_display.as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
+
+            if let Some(c) = get_char_pressed() {
+                if c == 3 as char || c == 13 as char {
+                    if player.name.len() > 2 {
+                        *status = Status::Run;
+                        return;
+                    }
+                }
+                if player.name.len() < MAX_NAME_LENGTH && is_valid_name_char(c) {
+                    player.name.push(c);
+                }
+            }
+
+            if is_key_pressed(KeyCode::Backspace) {
+                player.name.pop();
             }
         }
-        if player.name.len() < MAX_NAME_LENGTH && is_valid_name_char(c) {
-            player.name.push(c);
-        }
-    }
-
-    if is_key_pressed(KeyCode::Backspace) {
-        player.name.pop();
+        Err(e) => println!("Error while locking player: {:?}", e),
     }
 
     if is_key_pressed(KeyCode::Escape) {
@@ -786,246 +803,305 @@ fn handle_name_input(status: &mut Status, player: &mut Player, server_addr: &Str
 }
 fn handle_game_run(
     server_addr: &String,
-    player: &mut Player,
+    player_ref: Arc<Mutex<Player>>,
     game_params: &mut GameParams,
     socket: &Arc<UdpSocket>,
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
 ) {
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
-    if is_key_pressed(KeyCode::Escape) {
-        player.is_active = false;
-        if let Ok(message_to_server) = serde_json::to_string(player) {
-            let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
-        }
-        exit(0);
-    }
-    if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-        game_params.position += game_params.front * MOVE_SPEED;
-    }
-    if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-        game_params.position -= game_params.front * MOVE_SPEED;
-    }
-    if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-        game_params.position -= game_params.right * MOVE_SPEED;
-    }
-    if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-        game_params.position += game_params.right * MOVE_SPEED;
-    }
 
-    let gap: f32 = 0.05;
-    handle_wall_collisions(
-        &game_params.mini_map,
-        prev_pos,
-        &mut game_params.position,
-        gap,
-    );
-    let mouse_position: Vec2 = mouse_position().into();
-    let mouse_delta = mouse_position - game_params.last_mouse_position;
-    game_params.last_mouse_position = mouse_position;
-    game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
-    game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
-    game_params.pitch = if game_params.pitch > MAX_PITCH {
-        MAX_PITCH
-    } else {
-        game_params.pitch
-    };
-    game_params.pitch = if game_params.pitch < MIN_PITCH {
-        MIN_PITCH
-    } else {
-        game_params.pitch
-    };
-    game_params.front = vec3(
-        game_params.yaw.cos() * game_params.pitch.cos(),
-        game_params.pitch.sin(),
-        game_params.yaw.sin() * game_params.pitch.cos(),
-    )
-    .normalize();
-    game_params.right = game_params.front.cross(game_params.world_up).normalize();
-    let up = game_params.right.cross(game_params.front).normalize();
-    game_params.position.y = PLAYER_HEIGHT;
-    //2d
-    set_default_camera();
-    clear_background(WHITE);
-    player.position = Position::build(game_params.position.x, game_params.position.z);
-    //find projection of front on x_z plane
-    let p = game_params.front.dot(game_params.world_up) * game_params.world_up;
-    let orientation = (game_params.front - p).normalize();
-    player.orientation = orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
-    draw_rectangle_lines(
-        MAP_MARGIN_LEFT as f32,
-        MAP_MARGIN_TOP as f32,
-        MAP_WIDTH as f32,
-        MAP_HEIGHT as f32,
-        2.0,
-        DARKGRAY,
-    );
-    draw_text(
-        &player.name,
-        NAME_MARGIN_LEFT as f32,
-        NAME_MARGIN_TOP as f32,
-        20.0,
-        DARKGRAY,
-    );
-    draw_text(
-        format!("{}", player.score).as_str(),
-        SCORE_MARGIN_LEFT as f32,
-        NAME_MARGIN_TOP as f32,
-        20.0,
-        DARKGRAY,
-    );
-    render_mini_map(&game_params.mini_map, &game_params.mini_map_config);
-    draw_player_on_mini_map(
-        &player,
-        &game_params.mini_map,
-        &game_params.mini_map_config,
-        &game_params.arrow_texture,
-    );
-    draw_texture_ex(
-        &game_params.render_target.texture,
-        MAIN_MARGIN_LEFT as f32,
-        (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32,
-        WHITE,
-        DrawTextureParams {
-            dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
-            ..Default::default()
-        },
-    );
-
-    //enemies
-    if let Ok(enemies_result) = enemies.lock() {
-        if let Some(enemies) = enemies_result.clone() {
-            draw_enemy_names_and_scores(&enemies);
-            draw_enemies_on_minimap(&enemies, &game_params);
-        }
-    }
-
-    //3d
-    set_camera(&Camera3D {
-        render_target: Some(game_params.render_target.clone()),
-        position: game_params.position,
-        up: up,
-        target: game_params.position + game_params.front,
-        ..Default::default()
-    });
-    clear_background(LIGHTGRAY);
-    draw_grid(50, 1., BLACK, GRAY);
-    draw_walls(
-        &game_params.mini_map,
-        Some(&game_params.wall_texture),
-        WHITE,
-    );
-    //sky
-    let center = vec3(-20.0, 5.0, -20.0);
-    let size = vec2(100.0, 100.0);
-    draw_plane(center, size, Some(&game_params.sky_texture), WHITE);
-    //ground
-    let center = vec3(-50.0, -0.1, -50.0);
-    let size = vec2(100.0, 100.0);
-    draw_plane(center, size, None, BROWN);
-
-    //enemies
-    if let Ok(enemies_result) = enemies.lock() {
-        if let Some(enemies) = enemies_result.clone() {
-            for enemy in enemies {
-                let bytes = game_params.eye_texture.bytes.clone();
-                let width = game_params.eye_texture.width as u32;
-                let height = game_params.eye_texture.height;
-
-                let a = enemy.orientation.to_degrees() as u32;
-                let index = a * width * 4;
-                let mut top_half = bytes[..index as usize].to_vec();
-                let mut bottom_half = bytes[index as usize..].to_vec();
-                let mut bytes = vec![];
-                bytes.append(&mut bottom_half);
-                bytes.append(&mut top_half);
-                let image = Image {
-                    bytes,
-                    width: width as u16,
-                    height,
-                };
-                let texture = Texture2D::from_image(&image);
-                draw_sphere(
-                    vec3(enemy.position.x, PLAYER_HEIGHT, enemy.position.z),
-                    ENEMY_RADIUS,
-                    Some(&texture),
-                    WHITE,
-                );
+    match player_ref.lock() {
+        Ok(mut player) => {
+            let _player = &player.clone(); //to use in json parse
+            if is_key_pressed(KeyCode::Escape) {
+                //player.is_active = false;
+                player.player_status = PlayerStatus::Disconnent;
+                if let Ok(message_to_server) = serde_json::to_string(_player) {
+                    let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+                }
+                exit(0);
             }
-        }
-    }
-
-    if is_mouse_button_pressed(MouseButton::Left) {
-        let mut closest_hit_option: Option<Hit> = None;
-
-        let start = vec3(player.position.x, 0.95, player.position.z) + game_params.front / 10.0;
-
-        for hittable in &game_params.hittables {
-            if let Hittable::Wall(shield) = hittable {
-                let hit_option = shield.hit(start, game_params.front);
-                if let Some(hit) = hit_option {
-                    if let Some(ref closest_hit) = closest_hit_option {
-                        if hit.t < closest_hit.t {
-                            closest_hit_option = Some(hit);
-                        }
-                    } else {
-                        closest_hit_option = Some(hit);
-                    }
-                };
+            if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
+                game_params.position += game_params.front * MOVE_SPEED;
             }
-            //implement for enemy
-            if let Hittable::Enemy(player) = hittable {
-                let hit_option = player.hit(start, game_params.front);
-                if let Some(hit) = hit_option {
-                    if let Some(ref closest_hit) = closest_hit_option {
-                        if hit.t < closest_hit.t {
-                            closest_hit_option = Some(hit);
-                        }
-                    } else {
-                        closest_hit_option = Some(hit);
+            if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
+                game_params.position -= game_params.front * MOVE_SPEED;
+            }
+            if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
+                game_params.position -= game_params.right * MOVE_SPEED;
+            }
+            if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
+                game_params.position += game_params.right * MOVE_SPEED;
+            }
+
+            let gap: f32 = 0.05;
+            handle_wall_collisions(
+                &game_params.mini_map,
+                prev_pos,
+                &mut game_params.position,
+                gap,
+            );
+            let mouse_position: Vec2 = mouse_position().into();
+            let mouse_delta = mouse_position - game_params.last_mouse_position;
+            game_params.last_mouse_position = mouse_position;
+            game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
+            game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
+            game_params.pitch = if game_params.pitch > MAX_PITCH {
+                MAX_PITCH
+            } else {
+                game_params.pitch
+            };
+            game_params.pitch = if game_params.pitch < MIN_PITCH {
+                MIN_PITCH
+            } else {
+                game_params.pitch
+            };
+            game_params.front = vec3(
+                game_params.yaw.cos() * game_params.pitch.cos(),
+                game_params.pitch.sin(),
+                game_params.yaw.sin() * game_params.pitch.cos(),
+            )
+            .normalize();
+            game_params.right = game_params.front.cross(game_params.world_up).normalize();
+            let up = game_params.right.cross(game_params.front).normalize();
+            game_params.position.y = PLAYER_HEIGHT;
+            //2d
+            set_default_camera();
+            clear_background(WHITE);
+            player.position = Position::build(game_params.position.x, game_params.position.z);
+            //find projection of front on x_z plane
+            let p = game_params.front.dot(game_params.world_up) * game_params.world_up;
+            let orientation = (game_params.front - p).normalize();
+            player.orientation =
+                orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
+            draw_rectangle_lines(
+                MAP_MARGIN_LEFT as f32,
+                MAP_MARGIN_TOP as f32,
+                MAP_WIDTH as f32,
+                MAP_HEIGHT as f32,
+                2.0,
+                DARKGRAY,
+            );
+            draw_text(
+                &player.name,
+                NAME_MARGIN_LEFT as f32,
+                NAME_MARGIN_TOP as f32,
+                20.0,
+                DARKGRAY,
+            );
+            draw_text(
+                format!("{}", player.score).as_str(),
+                SCORE_MARGIN_LEFT as f32,
+                NAME_MARGIN_TOP as f32,
+                20.0,
+                DARKGRAY,
+            );
+            render_mini_map(&game_params.mini_map, &game_params.mini_map_config);
+            draw_player_on_mini_map(
+                &player,
+                &game_params.mini_map,
+                &game_params.mini_map_config,
+                &game_params.arrow_texture,
+            );
+            draw_texture_ex(
+                &game_params.render_target.texture,
+                MAIN_MARGIN_LEFT as f32,
+                (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
+                    ..Default::default()
+                },
+            );
+
+            //enemies
+            if let Ok(enemies_result) = enemies.lock() {
+                if let Some(enemies) = enemies_result.clone() {
+                    draw_enemy_names_and_scores(&enemies);
+                    draw_enemies_on_minimap(&enemies, &game_params);
+                }
+            }
+
+            //3d
+            set_camera(&Camera3D {
+                render_target: Some(game_params.render_target.clone()),
+                position: game_params.position,
+                up: up,
+                target: game_params.position + game_params.front,
+                ..Default::default()
+            });
+            clear_background(LIGHTGRAY);
+            draw_grid(50, 1., BLACK, GRAY);
+            draw_walls(
+                &game_params.mini_map,
+                Some(&game_params.wall_texture),
+                WHITE,
+            );
+            //sky
+            let center = vec3(-20.0, 5.0, -20.0);
+            let size = vec2(100.0, 100.0);
+            draw_plane(center, size, Some(&game_params.sky_texture), WHITE);
+            //ground
+            let center = vec3(-50.0, -0.1, -50.0);
+            let size = vec2(100.0, 100.0);
+            draw_plane(center, size, None, BROWN);
+
+            //enemies
+            if let Ok(enemies_result) = enemies.lock() {
+                if let Some(enemies) = enemies_result.clone() {
+                    for enemy in enemies {
+                        let bytes = game_params.eye_texture.bytes.clone();
+                        let width = game_params.eye_texture.width as u32;
+                        let height = game_params.eye_texture.height;
+
+                        let a = enemy.orientation.to_degrees() as u32;
+                        let index = a * width * 4;
+                        let mut top_half = bytes[..index as usize].to_vec();
+                        let mut bottom_half = bytes[index as usize..].to_vec();
+                        let mut bytes = vec![];
+                        bytes.append(&mut bottom_half);
+                        bytes.append(&mut top_half);
+                        let image = Image {
+                            bytes,
+                            width: width as u16,
+                            height,
+                        };
+                        let texture = Texture2D::from_image(&image);
+                        draw_sphere(
+                            vec3(enemy.position.x, PLAYER_HEIGHT, enemy.position.z),
+                            ENEMY_RADIUS,
+                            Some(&texture),
+                            WHITE,
+                        );
                     }
                 }
             }
-        }
 
-        let end = if let Some(closest_hit) = closest_hit_option {
-            match closest_hit.hittable {
-                Hittable::Wall(_) => println!("hit wall: {:?}", closest_hit.p),
-                Hittable::Enemy(player) => println!("hit enemy: {:?}", player.name),
+            //shooting
+            if is_mouse_button_pressed(MouseButton::Left) {
+                match game_params.hittables.lock() {
+                    Ok(hittables) => {
+                        let mut closest_hit_option: Option<Hit> = None;
+
+                        let start = vec3(player.position.x, 0.95, player.position.z)
+                            + game_params.front / 10.0;
+
+                        for hittable in hittables.iter() {
+                            if let Hittable::Wall(shield) = hittable {
+                                let hit_option = shield.hit(start, game_params.front);
+                                if let Some(hit) = hit_option {
+                                    if let Some(ref closest_hit) = closest_hit_option {
+                                        if hit.t < closest_hit.t {
+                                            closest_hit_option = Some(hit);
+                                        }
+                                    } else {
+                                        closest_hit_option = Some(hit);
+                                    }
+                                };
+                            }
+                            //implement for enemy
+                            if let Hittable::Enemy(player) = hittable {
+                                let hit_option = player.hit(start, game_params.front);
+                                if let Some(hit) = hit_option {
+                                    if let Some(ref closest_hit) = closest_hit_option {
+                                        if hit.t < closest_hit.t {
+                                            closest_hit_option = Some(hit);
+                                        }
+                                    } else {
+                                        closest_hit_option = Some(hit);
+                                    }
+                                }
+                            }
+                        }
+
+                        let end = if let Some(closest_hit) = closest_hit_option {
+                            match closest_hit.hittable {
+                                Hittable::Wall(_) => println!("hit wall: {:?}", closest_hit.p),
+                                Hittable::Enemy(mut player) => {
+                                    //hit enemy
+                                    println!("hit enemy: {:?}", player.name);
+                                    //update score
+                                    match player_ref.lock() {
+                                        Ok(mut player) => player.score += 1,
+                                        Err(e) => println!("Error while locking player {:?}", e),
+                                    }
+                                    //remove from hitables
+                                    match game_params.hittables.lock() {
+                                        Ok(mut hittables) => {
+                                            *hittables = hittables
+                                                .iter()
+                                                .filter(|hittable| {
+                                                    if let Hittable::Enemy(enemy) = hittable {
+                                                        enemy.id != player.id
+                                                    } else {
+                                                        true
+                                                    }
+                                                })
+                                                .cloned()
+                                                .collect();
+                                        }
+                                        Err(e) => println!("Error while locking hittables {:?}", e),
+                                    }
+                                    //notify server
+                                    player.player_status = PlayerStatus::Killed;
+                                    if let Ok(message_to_server) = serde_json::to_string(&player) {
+                                        send_message_to_server(
+                                            socket,
+                                            server_addr,
+                                            &message_to_server,
+                                        );
+                                    }
+                                }
+                            }
+                            closest_hit.p
+                        } else {
+                            println!("miss");
+                            start + game_params.front * MAX_SHOT_RANGE
+                        };
+
+                        let shot = Shot {
+                            start,
+                            end,
+                            time_out: SHOT_DURATION,
+                            color: RED,
+                        };
+                        game_params.shots.push(shot);
+                    }
+                    Err(e) => println!("Error while locking hittables {:?}", e),
+                }
             }
-            closest_hit.p
-        } else {
-            println!("miss");
-            start + game_params.front * MAX_SHOT_RANGE
-        };
 
-        let shot = Shot {
-            start,
-            end,
-            time_out: SHOT_DURATION,
-            color: RED,
-        };
-        game_params.shots.push(shot);
-    }
-    draw_shots(&game_params.shots);
-    remove_shots(&mut game_params.shots);
+            draw_shots(&game_params.shots);
+            remove_shots(&mut game_params.shots);
 
-    //draw hittables
-    /*
-    for hittable in &game_params.hittables {
-        if let Hittable::Wall(shield) = hittable {
-            draw_sphere(shield.q, 0.05, None, PURPLE);
-            draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
-            draw_sphere(shield.q + shield.v, 0.05, None, BLUE);
+            //draw hittables
+            /*
+            for hittable in &game_params.hittables {
+                if let Hittable::Wall(shield) = hittable {
+                    draw_sphere(shield.q, 0.05, None, PURPLE);
+                    draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
+                    draw_sphere(shield.q + shield.v, 0.05, None, BLUE);
+                }
+            }
+            */
+
+            if let Ok(message_to_server) = serde_json::to_string(_player) {
+                send_message_to_server(socket, server_addr, &message_to_server);
+            }
         }
-    }
-    */
-
-    if let Ok(message_to_server) = serde_json::to_string(player) {
-        let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+        Err(e) => {
+            println!("Error while locking player: {:?}", e)
+        }
     }
 }
-fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<Player>>>>) {
+fn start_server_listener(
+    socket: Arc<UdpSocket>,
+    enemies: Arc<Mutex<Option<Vec<Player>>>>,
+    player: Arc<Mutex<Player>>,
+    hittables: Arc<Mutex<Vec<Hittable>>>,
+) {
+    let player_id = player.lock().unwrap().id.clone();
     //Server response listener
     thread::spawn(move || loop {
         let mut buffer = [0u8; 1024];
@@ -1036,24 +1112,98 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<P
             //     src,
             //     std::str::from_utf8(&buffer[..size]).unwrap_or("<invalid UTF-8>")
             // );
-            if let Ok(enemies_str) = std::str::from_utf8(&buffer[..size]) {
-                let enemies_result = from_str::<Vec<Player>>(enemies_str);
-                match enemies_result {
-                    Ok(es) => {
-                        let enemies_locked_result = enemies.lock();
-                        match enemies_locked_result {
-                            Ok(mut enemies_locked) => *enemies_locked = Some(es),
-                            Err(e) => println!("Error while locking: {e}"),
+
+            if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
+                //let enemies_result = from_str::<Vec<Player>>(enemies_str);
+                match from_str::<Vec<Player>>(players_str) {
+                    Ok(players) => {
+                        //clear hittables from enemies
+                        match hittables.lock() {
+                            Ok(mut hittables_locked) => {
+                                *hittables_locked = hittables_locked
+                                    .iter()
+                                    .filter(|item| {
+                                        if let Hittable::Enemy(_) = item {
+                                            false
+                                        } else {
+                                            true
+                                        }
+                                    })
+                                    .cloned()
+                                    .collect();
+                            }
+                            Err(e) => println!("Error while locking hittables {:?}", e),
+                        }
+                        //filter player and handle if killed
+                        let mut enemies_local_option: Option<Vec<Player>> = None;
+                        for _player in players {
+                            if _player.id == player_id {
+                                if let PlayerStatus::Killed = _player.player_status {
+                                    //player is killed. update position and status
+                                    match player.lock() {
+                                        Ok(mut player_locked) => {
+                                            println!("Player {} killed", player_locked.name);
+                                            let position =
+                                                generate_position(&player_locked.mini_map);
+                                            player_locked.position =
+                                                Position::build(position.x, position.z);
+                                            player_locked.player_status = PlayerStatus::Active;
+                                        }
+                                        Err(e) => println!("Error while locking player: {:?}", e),
+                                    }
+                                }
+                            } else {
+                                //collect enemies
+                                if let Some(ref mut enemies_local) = enemies_local_option {
+                                    enemies_local.push(_player.clone());
+                                } else {
+                                    enemies_local_option = Some(vec![_player.clone()]);
+                                }
+
+                                //update hittables
+                                match hittables.lock() {
+                                    Ok(mut hittables_locked) => {
+                                        hittables_locked.push(Hittable::Enemy(_player));
+                                    }
+                                    Err(e) => println!("Error while locking hittables {:?}", e),
+                                }
+                            }
+                        }
+                        //update enemies
+                        match enemies.lock() {
+                            Ok(mut enemies_locked) => *enemies_locked = enemies_local_option,
+                            Err(e) => println!("Error while locking enemies: {:?}", e),
                         }
                     }
-                    Err(e) => println!("line 902 Error Parsing: {e}"),
+                    Err(e) => println!("Error while parsing players: {e}"),
                 }
             } else {
                 println!("no enemies...",);
-                let enemies_locked_result = enemies.lock();
-                match enemies_locked_result {
+                // let enemies_locked_result = enemies.lock();
+                // match enemies_locked_result {
+                //     Ok(mut enemies_locked) => *enemies_locked = None,
+                //     Err(e) => println!("Error while locking: {e}"),
+                // }
+                match enemies.lock() {
                     Ok(mut enemies_locked) => *enemies_locked = None,
-                    Err(e) => println!("Error while locking: {e}"),
+                    Err(e) => println!("Error while locking emenies: {e}"),
+                }
+                //clear hittables from enemies
+                match hittables.lock() {
+                    Ok(mut hittables_locked) => {
+                        *hittables_locked = hittables_locked
+                            .iter()
+                            .filter(|item| {
+                                if let Hittable::Enemy(_) = item {
+                                    false
+                                } else {
+                                    true
+                                }
+                            })
+                            .cloned()
+                            .collect();
+                    }
+                    Err(e) => println!("Error while locking hittables {:?}", e),
                 }
             }
         }
@@ -1062,7 +1212,7 @@ fn start_server_listener(socket: Arc<UdpSocket>, enemies: Arc<Mutex<Option<Vec<P
 fn draw_enemy_names_and_scores(enemies: &Vec<Player>) {
     let mut top_offset = NAME_MARGIN_TOP as f32 + 35.0;
     for enemy in enemies {
-        if enemy.is_active {
+        if let PlayerStatus::Active = enemy.player_status {
             draw_text(
                 &enemy.name,
                 NAME_MARGIN_LEFT as f32,
@@ -1083,7 +1233,7 @@ fn draw_enemy_names_and_scores(enemies: &Vec<Player>) {
 }
 fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams) {
     for enemy in enemies {
-        if enemy.is_active {
+        if let PlayerStatus::Active = enemy.player_status {
             draw_enemy_on_minimap(
                 &enemy,
                 &game_params.mini_map,
@@ -1109,48 +1259,57 @@ fn remove_shots(shots: &mut Vec<Shot>) {
         .collect();
     *shots = filtered;
 }
-fn add_shields(hittables: &mut Vec<Hittable>, mini_map: &Vec<Vec<bool>>) {
-    for (z, row) in mini_map.iter().enumerate() {
-        for (x, cell) in row.iter().enumerate() {
-            if !cell {
-                //check cell up
-                if mini_map[z - 1][x] {
-                    let shield = Shield::new(
-                        vec3(x as f32 - 0.5, 0.5, z as f32 - 0.5),
-                        vec3(1.0, 0.0, 0.0),
-                        vec3(0.0, 1.0, 0.0),
-                    );
-                    hittables.push(Hittable::Wall(shield));
-                }
-                //check cell right
-                if mini_map[z][x + 1] {
-                    let shield = Shield::new(
-                        vec3(x as f32 + 0.5, 0.5, z as f32 - 0.5),
-                        vec3(0.0, 0.0, 1.0),
-                        vec3(0.0, 1.0, 0.0),
-                    );
-                    hittables.push(Hittable::Wall(shield));
-                }
-                //check cell bottom
-                if mini_map[z + 1][x] {
-                    let shield = Shield::new(
-                        vec3(x as f32 - 0.5, 0.5, z as f32 + 0.5),
-                        vec3(1.0, 0.0, 0.0),
-                        vec3(0.0, 1.0, 0.0),
-                    );
-                    hittables.push(Hittable::Wall(shield));
-                }
-                //check cell left
-                if mini_map[z][x - 1] {
-                    let shield = Shield::new(
-                        vec3(x as f32 - 0.5, 0.5, z as f32 - 0.5),
-                        vec3(0.0, 0.0, 1.0),
-                        vec3(0.0, 1.0, 0.0),
-                    );
-                    hittables.push(Hittable::Wall(shield));
+fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool>>) {
+    match hittables_ref.lock() {
+        Ok(mut hittables) => {
+            ////////////////
+
+            for (z, row) in mini_map.iter().enumerate() {
+                for (x, cell) in row.iter().enumerate() {
+                    if !cell {
+                        //check cell up
+                        if mini_map[z - 1][x] {
+                            let shield = Shield::new(
+                                vec3(x as f32 - 0.5, 0.5, z as f32 - 0.5),
+                                vec3(1.0, 0.0, 0.0),
+                                vec3(0.0, 1.0, 0.0),
+                            );
+                            hittables.push(Hittable::Wall(shield));
+                        }
+                        //check cell right
+                        if mini_map[z][x + 1] {
+                            let shield = Shield::new(
+                                vec3(x as f32 + 0.5, 0.5, z as f32 - 0.5),
+                                vec3(0.0, 0.0, 1.0),
+                                vec3(0.0, 1.0, 0.0),
+                            );
+                            hittables.push(Hittable::Wall(shield));
+                        }
+                        //check cell bottom
+                        if mini_map[z + 1][x] {
+                            let shield = Shield::new(
+                                vec3(x as f32 - 0.5, 0.5, z as f32 + 0.5),
+                                vec3(1.0, 0.0, 0.0),
+                                vec3(0.0, 1.0, 0.0),
+                            );
+                            hittables.push(Hittable::Wall(shield));
+                        }
+                        //check cell left
+                        if mini_map[z][x - 1] {
+                            let shield = Shield::new(
+                                vec3(x as f32 - 0.5, 0.5, z as f32 - 0.5),
+                                vec3(0.0, 0.0, 1.0),
+                                vec3(0.0, 1.0, 0.0),
+                            );
+                            hittables.push(Hittable::Wall(shield));
+                        }
+                    }
                 }
             }
+
+            /////////////////
         }
+        Err(e) => println!("Error while locking hittables {:?}", e),
     }
 
     //cell down from (1, 2)
@@ -1184,4 +1343,12 @@ fn add_shields(hittables: &mut Vec<Hittable>, mini_map: &Vec<Vec<bool>>) {
     //     vec3(0.0, 1.0, 0.0),
     // );
     // hittables.push(Hittable::Wall(shield));
+}
+fn send_message_to_server(socket: &Arc<UdpSocket>, server_addr: &String, message_to_server: &str) {
+    if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
+        println!(
+            "Error while sending message {} to server: {:?}",
+            message_to_server, e
+        );
+    }
 }
