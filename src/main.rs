@@ -1039,23 +1039,25 @@ fn handle_game_run(
                         let end = if let Some(closest_hit) = closest_hit_option {
                             match closest_hit.hittable {
                                 Hittable::Wall(_) => println!("hit wall: {:?}", closest_hit.p),
-                                Hittable::Enemy(mut player) => {
+                                Hittable::Enemy(mut enemy) => {
                                     //hit enemy
-                                    println!("hit enemy: {:?}", player.name);
+                                    println!("hit enemy: {:?}", enemy.name);
                                     //update score
 
-                                    match player_ref.lock() {
-                                        Ok(mut player) => player.score += 1,
-                                        Err(e) => println!("Error while locking player {:?}", e),
-                                    }                                    
+
+                                    player.score += 1;
+                                    // match player_ref.lock() {
+                                    //     Ok(mut player) => player.score += 1,
+                                    //     Err(e) => println!("Error while locking player {:?}", e),
+                                    // }                                    
                                     //remove from hitables
                                     match game_params.hittables.lock() {
                                         Ok(mut hittables) => {
                                             *hittables = hittables
                                                 .iter()
                                                 .filter(|hittable| {
-                                                    if let Hittable::Enemy(enemy) = hittable {
-                                                        enemy.id != player.id
+                                                    if let Hittable::Enemy(_enemy) = hittable {
+                                                        _enemy.id != enemy.id
                                                     } else {
                                                         true
                                                     }
@@ -1066,8 +1068,8 @@ fn handle_game_run(
                                         Err(e) => println!("Error while locking hittables {:?}", e),
                                     }
                                     //notify server
-                                    player.player_status = PlayerStatus::Killed;
-                                    if let Ok(message_to_server) = serde_json::to_string(&player) {
+                                    enemy.player_status = PlayerStatus::Killed;
+                                    if let Ok(message_to_server) = serde_json::to_string(&enemy) {
                                         send_message_to_server(
                                             socket,
                                             server_addr,
