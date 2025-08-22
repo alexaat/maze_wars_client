@@ -808,6 +808,7 @@ fn handle_game_run(
     socket: &Arc<UdpSocket>,
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
 ) {
+    let mut require_update = false;
     let delta = get_frame_time();
     let prev_pos = game_params.position.clone();
 
@@ -825,15 +826,19 @@ fn handle_game_run(
             }
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
                 game_params.position += game_params.front * MOVE_SPEED;
+                require_update = true;
             }
             if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
                 game_params.position -= game_params.front * MOVE_SPEED;
+                require_update = true;
             }
             if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
                 game_params.position -= game_params.right * MOVE_SPEED;
+                require_update = true;
             }
             if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
                 game_params.position += game_params.right * MOVE_SPEED;
+                require_update = true;
             }
 
             let gap: f32 = 0.05;
@@ -845,6 +850,10 @@ fn handle_game_run(
             );
             let mouse_position: Vec2 = mouse_position().into();
             let mouse_delta = mouse_position - game_params.last_mouse_position;
+            let mouse_delta_length = mouse_delta.length();
+            if mouse_delta_length > 0.0 {
+                require_update = true;
+            }
             game_params.last_mouse_position = mouse_position;
             game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
             game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
@@ -980,7 +989,7 @@ fn handle_game_run(
             }
 
             //shooting
-            if is_mouse_button_pressed(MouseButton::Left) {
+            if is_mouse_button_pressed(MouseButton::Left) {                
                 match game_params.hittables.lock() {
                     Ok(hittables) => {
                         let mut closest_hit_option: Option<Hit> = None;
@@ -1023,10 +1032,11 @@ fn handle_game_run(
                                     //hit enemy
                                     println!("hit enemy: {:?}", player.name);
                                     //update score
+
                                     match player_ref.lock() {
                                         Ok(mut player) => player.score += 1,
                                         Err(e) => println!("Error while locking player {:?}", e),
-                                    }
+                                    }                                    
                                     //remove from hitables
                                     match game_params.hittables.lock() {
                                         Ok(mut hittables) => {
@@ -1053,6 +1063,7 @@ fn handle_game_run(
                                             &message_to_server,
                                         );
                                     }
+                               
                                 }
                             }
                             closest_hit.p
@@ -1087,9 +1098,12 @@ fn handle_game_run(
             }
             */
 
-            if let Ok(message_to_server) = serde_json::to_string(&_player) {
-                send_message_to_server(socket, server_addr, &message_to_server);
+            if require_update{
+                if let Ok(message_to_server) = serde_json::to_string(&_player) {
+                    send_message_to_server(socket, server_addr, &message_to_server);
+                }
             }
+
         }
         Err(e) => {
             println!("Error while locking player: {:?}", e)
