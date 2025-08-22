@@ -1137,10 +1137,10 @@ fn start_server_listener(
     hittables: Arc<Mutex<Vec<Hittable>>>,
 ) {
     let player_id = player.lock().unwrap().id.clone();
-    println!("player_id: {player_id}");
+   
     //Server response listener
     thread::spawn(move || loop {
-        let mut buffer = [0u8; 1024];
+        let mut buffer = [0u8; 2048];
         if let Ok((size, _)) = socket.recv_from(&mut buffer) {
             // println!(
             //     "Received {} bytes from {}: {}",
@@ -1151,6 +1151,7 @@ fn start_server_listener(
 
             if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
                 //let enemies_result = from_str::<Vec<Player>>(enemies_str);
+                println!("player_id: {player_id}");
                 println!("{}",players_str);
                 println!("");
                 match from_str::<Vec<Player>>(players_str) {
