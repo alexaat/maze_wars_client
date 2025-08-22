@@ -1045,28 +1045,31 @@ fn handle_game_run(
                                     //update score
 
 
-                                    player.score += 1;
+                                    player.score = player.score + 1;
                                     // match player_ref.lock() {
                                     //     Ok(mut player) => player.score += 1,
                                     //     Err(e) => println!("Error while locking player {:?}", e),
-                                    // }                                    
+                                    // } 
+
+
+                                    
                                     //remove from hitables
-                                    match game_params.hittables.lock() {
-                                        Ok(mut hittables) => {
-                                            *hittables = hittables
-                                                .iter()
-                                                .filter(|hittable| {
-                                                    if let Hittable::Enemy(_enemy) = hittable {
-                                                        _enemy.id != enemy.id
-                                                    } else {
-                                                        true
-                                                    }
-                                                })
-                                                .cloned()
-                                                .collect();
-                                        }
-                                        Err(e) => println!("Error while locking hittables {:?}", e),
-                                    }
+                                    // match game_params.hittables.lock() {
+                                    //     Ok(mut hittables) => {
+                                    //         *hittables = hittables
+                                    //             .iter()
+                                    //             .filter(|hittable| {
+                                    //                 if let Hittable::Enemy(_enemy) = hittable {
+                                    //                     _enemy.id != enemy.id
+                                    //                 } else {
+                                    //                     true
+                                    //                 }
+                                    //             })
+                                    //             .cloned()
+                                    //             .collect();
+                                    //     }
+                                    //     Err(e) => println!("Error while locking hittables {:?}", e),
+                                    // }
                                     //notify server
                                     enemy.player_status = PlayerStatus::Killed;
                                     if let Ok(message_to_server) = serde_json::to_string(&enemy) {
@@ -1076,7 +1079,10 @@ fn handle_game_run(
                                             &message_to_server,
                                         );
                                     }
-                               
+                                    
+
+
+
                                 }
                             }
                             closest_hit.p
