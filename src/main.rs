@@ -1189,10 +1189,13 @@ fn start_server_listener(
                                 }
                             } else {
                                 //collect enemies
-                                if let Some(ref mut enemies_local) = enemies_local_option {
-                                    enemies_local.push(_player.clone());
-                                } else {
-                                    enemies_local_option = Some(vec![_player.clone()]);
+                                if let PlayerStatus::Active = _player.player_status{
+                                    if let Some(ref mut enemies_local) = enemies_local_option {                                        
+                                        enemies_local.push(_player.clone());
+                                                                        
+                                    } else {
+                                        enemies_local_option = Some(vec![_player.clone()]);
+                                    }
                                 }
 
                                 //update hittables
