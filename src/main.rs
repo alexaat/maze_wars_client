@@ -1137,6 +1137,7 @@ fn start_server_listener(
     hittables: Arc<Mutex<Vec<Hittable>>>,
 ) {
     let player_id = player.lock().unwrap().id.clone();
+    println!("player_id: {player_id}");
     //Server response listener
     thread::spawn(move || loop {
         let mut buffer = [0u8; 1024];
@@ -1150,9 +1151,12 @@ fn start_server_listener(
 
             if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
                 //let enemies_result = from_str::<Vec<Player>>(enemies_str);
+                println!("{}",players_str);
+                println!("");
                 match from_str::<Vec<Player>>(players_str) {
                     Ok(players) => {
-                        //clear hittables from enemies
+                        //println!("players: {:?}", players);
+                        //clear hittables from enemies temp disable
                         match hittables.lock() {
                             Ok(mut hittables_locked) => {
                                 *hittables_locked = hittables_locked
@@ -1173,6 +1177,7 @@ fn start_server_listener(
                         let mut enemies_local_option: Option<Vec<Player>> = None;
                         for _player in players {
                             if _player.id == player_id {
+                                //println!("_player.id == player_id. _player:{:?}", _player);
                                 if let PlayerStatus::Killed = _player.player_status {
                                     //player is killed. update position and status
                                     match player.lock() {
@@ -1188,6 +1193,7 @@ fn start_server_listener(
                                     }
                                 }
                             } else {
+                                //println!("_player.id != player_id. _player:{:?}", _player);
                                 //collect enemies
                                 if let PlayerStatus::Active = _player.player_status{
                                     if let Some(ref mut enemies_local) = enemies_local_option {                                        
