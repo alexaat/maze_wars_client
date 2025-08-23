@@ -27,6 +27,17 @@ pub struct Player {
     pub current_map: String,
     #[serde(skip_serializing, skip_deserializing)]
     pub mini_map: Vec<Vec<bool>>,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub yaw: f32,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub pitch: f32,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub front: Vec3,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub right: Vec3,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub position_vec3: Vec3,
+
 }
 impl Player {
     pub fn new() -> Self {
@@ -40,6 +51,11 @@ impl Player {
             orientation: 0.0,
             current_map: String::from(""),
             mini_map: vec![],
+            yaw: 0.0,
+            pitch: 0.0,
+            front: vec3(1.0, 0.0, 0.0),
+            right: vec3(0.0, 0.0, 1.0),
+            position_vec3: vec3(1.0, 1.0, 1.0)   
         }
     }
     //function that when player is used as enemy calculate if it was hit by other player
@@ -151,11 +167,6 @@ pub struct GameParams {
     pub eye_texture: Image,
     pub mini_map_config: MiniMapConfig,
     pub render_target: RenderTarget,
-    pub yaw: f32,
-    pub pitch: f32,
-    pub front: Vec3,
-    pub right: Vec3,
-    pub position: Vec3,
     pub last_mouse_position: Vec2,
     pub mini_map: Vec<Vec<bool>>,
     pub world_up: Vec3,

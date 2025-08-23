@@ -29,16 +29,14 @@ fn conf() -> Conf {
 #[macroquad::main(conf)]
 async fn main() {
     //send request from client:  echo -n 'Hello from client' | nc -u 127.0.0.1 4000
-    let mut player = Player::new();
-    player.current_map = String::from("map_one");
 
     let mut status = Status::EnterIP;
-    //request_new_screen_size(SCREEN_WIDTH as f32, SCREEN_HEIGHT as f32);
     let mut server_addr = String::new();
     //init game engine
     let mut game_params = init_game_params();
+    //init player
+    let player = init_player(&game_params);
 
-    player.mini_map = game_params.mini_map.clone();
     let player = Arc::new(Mutex::new(player));
 
     set_cursor_grab(true);
@@ -79,6 +77,31 @@ async fn main() {
         next_frame().await;
     }
 }
+fn init_player(game_params: &GameParams) -> Player{
+    let mut player = Player::new();
+    player.current_map = String::from("map_one");
+    player.mini_map = game_params.mini_map.clone();
+
+    let yaw: f32 = 0.0; //rotation around y axes
+    let pitch: f32 = 0.0; //tilt up/down
+    let front = vec3(
+        yaw.cos() * pitch.cos(),
+        pitch.sin(),
+        yaw.sin() * pitch.cos(),
+    )
+    .normalize();
+    let right = front.cross(game_params.world_up).normalize();
+    let position_vec3 = generate_position(&game_params.mini_map);
+    
+    player.yaw = yaw;
+    player.pitch = pitch;
+    player.front = front;
+    player.right = right;
+    player.position_vec3 = position_vec3;
+    player.position = Position { x: position_vec3.x, z: position_vec3.z};
+    player
+}
+    
 fn init_game_params() -> GameParams {
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
@@ -111,16 +134,16 @@ fn init_game_params() -> GameParams {
         },
     );
     let world_up = vec3(0.0, 1.0, 0.0);
-    let yaw: f32 = 1.18; //rotation around y axes
-    let pitch: f32 = 0.0; //tilt up/down
-    let front = vec3(
-        yaw.cos() * pitch.cos(),
-        pitch.sin(),
-        yaw.sin() * pitch.cos(),
-    )
-    .normalize();
-    let right = front.cross(world_up).normalize();
-    let position = generate_position(&mini_map);
+    // let yaw: f32 = 1.18; //rotation around y axes
+    // let pitch: f32 = 0.0; //tilt up/down
+    // let front = vec3(
+    //     yaw.cos() * pitch.cos(),
+    //     pitch.sin(),
+    //     yaw.sin() * pitch.cos(),
+    // )
+    // .normalize();
+    // let right = front.cross(world_up).normalize();
+    // let position = generate_position(&mini_map);
     let last_mouse_position: Vec2 = mouse_position().into();
 
     let shots = vec![];
@@ -140,11 +163,11 @@ fn init_game_params() -> GameParams {
         eye_texture,
         mini_map_config,
         render_target,
-        yaw,
-        pitch,
-        front,
-        right,
-        position,
+        // yaw,
+        // pitch,
+        // front,
+        // right,
+        // position,
         last_mouse_position,
         mini_map,
         world_up,
@@ -818,30 +841,38 @@ fn handle_game_run(
     }
    
     let delta = get_frame_time();
-    let prev_pos = game_params.position.clone();
+    //let prev_pos = game_params.position.clone();
+   
 
     match player_ref.lock() {
         Ok(mut player) => {
-          
+            let prev_pos = player.position_vec3.clone();
+            let front = player.clone().front;
+            let right = player.clone().right;
+
             if is_key_pressed(KeyCode::Escape) {
                 player.player_status = PlayerStatus::Disconnent;
                 send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
                 exit(0);
             }
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-                game_params.position += game_params.front * MOVE_SPEED;
+                //game_params.position += game_params.front * MOVE_SPEED;
+                player.position_vec3 += front * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-                game_params.position -= game_params.front * MOVE_SPEED;
+                //game_params.position -= game_params.front * MOVE_SPEED;
+                player.position_vec3 -= front * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-                game_params.position -= game_params.right * MOVE_SPEED;
+                //game_params.position -= game_params.right * MOVE_SPEED;
+                player.position_vec3 -= right * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-                game_params.position += game_params.right * MOVE_SPEED;
+                //game_params.position += game_params.right * MOVE_SPEED;
+                player.position_vec3 += right * MOVE_SPEED;
                 require_update = true;
             }
 
@@ -849,7 +880,8 @@ fn handle_game_run(
             handle_wall_collisions(
                 &game_params.mini_map,
                 prev_pos,
-                &mut game_params.position,
+               // &mut game_params.position,
+               &mut player.position_vec3,
                 gap,
             );
             let mouse_position: Vec2 = mouse_position().into();
@@ -859,36 +891,61 @@ fn handle_game_run(
                 require_update = true;
             }
             game_params.last_mouse_position = mouse_position;
-            game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
-            game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
-            game_params.pitch = if game_params.pitch > MAX_PITCH {
+            
+            //game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
+            player.yaw += mouse_delta.x * delta * LOOK_SPEED;
+            // game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
+            player.pitch += mouse_delta.y * delta * -LOOK_SPEED;
+            // game_params.pitch = if game_params.pitch > MAX_PITCH {
+            //     MAX_PITCH
+            // } else {
+            //     game_params.pitch
+            // };
+            player.pitch = if player.pitch > MAX_PITCH {
                 MAX_PITCH
             } else {
-                game_params.pitch
+                player.pitch
             };
-            game_params.pitch = if game_params.pitch < MIN_PITCH {
+            // game_params.pitch = if game_params.pitch < MIN_PITCH {
+            //     MIN_PITCH
+            // } else {
+            //     game_params.pitch
+            // };
+            player.pitch = if player.pitch < MIN_PITCH {
                 MIN_PITCH
             } else {
-                game_params.pitch
+                player.pitch
             };
-            game_params.front = vec3(
-                game_params.yaw.cos() * game_params.pitch.cos(),
-                game_params.pitch.sin(),
-                game_params.yaw.sin() * game_params.pitch.cos(),
+            // game_params.front = vec3(
+            //     game_params.yaw.cos() * game_params.pitch.cos(),
+            //     game_params.pitch.sin(),
+            //     game_params.yaw.sin() * game_params.pitch.cos(),
+            // )
+            // .normalize();
+            player.front = vec3(
+                player.yaw.cos() * player.pitch.cos(),
+                player.pitch.sin(),
+                player.yaw.sin() * player.pitch.cos(),
             )
             .normalize();
-            game_params.right = game_params.front.cross(game_params.world_up).normalize();
-            let up = game_params.right.cross(game_params.front).normalize();
-            game_params.position.y = PLAYER_HEIGHT;
+            //game_params.right = game_params.front.cross(game_params.world_up).normalize();
+            player.right = player.front.cross(game_params.world_up).normalize();
+            //let up = game_params.right.cross(game_params.front).normalize();
+            let up = player.right.cross(player.front).normalize();
+            //game_params.position.y = PLAYER_HEIGHT;
+            player.position_vec3.y = PLAYER_HEIGHT;
             //2d
             set_default_camera();
             clear_background(WHITE);
-            player.position = Position::build(game_params.position.x, game_params.position.z);
+            //player.position = Position::build(game_params.position.x, game_params.position.z);
+            player.position = Position::build(player.position_vec3.x, player.position_vec3.z);
             //find projection of front on x_z plane
-            let p = game_params.front.dot(game_params.world_up) * game_params.world_up;
-            let orientation = (game_params.front - p).normalize();
+            //let p = game_params.front.dot(game_params.world_up) * game_params.world_up;
+            let p = player.front.dot(game_params.world_up) * game_params.world_up;
+            //let orientation = (game_params.front - p).normalize();
+            let orientation = (player.front - p).normalize();
             player.orientation =
-                orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
+            orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
             draw_rectangle_lines(
                 MAP_MARGIN_LEFT as f32,
                 MAP_MARGIN_TOP as f32,
@@ -938,14 +995,22 @@ fn handle_game_run(
             }
 
             //3d
-            let  game_params_position = vec3(player.position.x, PLAYER_HEIGHT, player.position.z);
+            // set_camera(&Camera3D {
+            //     render_target: Some(game_params.render_target.clone()),
+            //     position: game_params.position,
+            //     up: up,
+            //     target: game_params.position + game_params.front,
+            //     ..Default::default()
+            // });
+            
             set_camera(&Camera3D {
                 render_target: Some(game_params.render_target.clone()),
-                position: game_params_position,
+                position: player.position_vec3,
                 up: up,
-                target: game_params_position + game_params.front,
+                target: player.position_vec3 + player.front,
                 ..Default::default()
             });
+            
             clear_background(LIGHTGRAY);
             draw_grid(50, 1., BLACK, GRAY);
             draw_walls(
@@ -991,9 +1056,7 @@ fn handle_game_run(
                         );
                     }
                 }
-            }
-
-            
+            }            
 
             //shooting
             if is_mouse_button_pressed(MouseButton::Left) {              
@@ -1001,12 +1064,16 @@ fn handle_game_run(
                     Ok(hittables) => {
                         let mut closest_hit_option: Option<Hit> = None;
 
+                        // let start = vec3(player.position.x, 0.95, player.position.z)
+                        //     + game_params.front / 10.0;
+
                         let start = vec3(player.position.x, 0.95, player.position.z)
-                            + game_params.front / 10.0;
+                             + player.front / 10.0;
 
                         for hittable in hittables.iter() {
                             if let Hittable::Wall(shield) = hittable {
-                                let hit_option = shield.hit(start, game_params.front);
+                                //let hit_option = shield.hit(start, game_params.front);
+                                let hit_option = shield.hit(start, player.front);
                                 if let Some(hit) = hit_option {
                                     if let Some(ref closest_hit) = closest_hit_option {
                                         if hit.t < closest_hit.t {
@@ -1019,7 +1086,8 @@ fn handle_game_run(
                             }
                             //implement for enemy
                             if let Hittable::Enemy(player) = hittable {
-                                let hit_option = player.hit(start, game_params.front);
+                                //let hit_option = player.hit(start, game_params.front);
+                                let hit_option = player.hit(start, player.front);
                                 if let Some(hit) = hit_option {
                                     if let Some(ref closest_hit) = closest_hit_option {
                                         if hit.t < closest_hit.t {
@@ -1074,7 +1142,8 @@ fn handle_game_run(
                             closest_hit.p
                         } else {
                             println!("miss");
-                            start + game_params.front * MAX_SHOT_RANGE
+                            //start + game_params.front * MAX_SHOT_RANGE
+                            start + player.front * MAX_SHOT_RANGE
                         };
 
                         let shot = Shot {
@@ -1171,8 +1240,8 @@ fn start_server_listener(
                                             println!("Player {} killed", player_locked.name);
                                             let position =
                                                 generate_position(&player_locked.mini_map);
-                                             player_locked.position =
-                                                Position::build(position.x, position.z);
+                                            player_locked.position_vec3 = position;    
+                                            player_locked.position = Position::build(position.x, position.z);
                                             player_locked.player_status = PlayerStatus::Active;
                                             //send message to server
                                             let server_object = ServerMessage{sender_id: player_locked.id.clone(), player: player_locked.clone()};
