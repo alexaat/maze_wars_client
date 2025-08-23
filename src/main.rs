@@ -58,6 +58,7 @@ async fn main() {
         Arc::clone(&enemies),
         Arc::clone(&player),
         Arc::clone(&game_params.hittables),
+        &server_addr
     );
 
     //update server on the first round of the loop
@@ -752,6 +753,9 @@ fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
     if let Some(c) = get_char_pressed() {
         if c == 3 as char || c == 13 as char {
             *status = Status::EnterName;
+
+
+            
             return;
         }
 
@@ -1108,9 +1112,9 @@ fn handle_game_run(
             }
             */
 
-            //if require_update{
+            if require_update{
                 send_message_to_server(socket, server_addr, player.clone(), player.id.clone());             
-            //}
+            }
 
         }
         Err(e) => {
@@ -1123,9 +1127,10 @@ fn start_server_listener(
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
     player: Arc<Mutex<Player>>,
     hittables: Arc<Mutex<Vec<Hittable>>>,
+    server_addr: &String
 ) {
-    let player_id = player.lock().unwrap().id.clone();
-   
+    let player_id = player.lock().unwrap().id.clone();    
+    let server_addr = server_addr.clone();    
     //Server response listener
     thread::spawn(move || loop {
         let mut buffer = [0u8; 2048];
@@ -1179,6 +1184,20 @@ fn start_server_listener(
                                             player_locked.position =
                                                 Position::build(position.x, position.z);
                                             player_locked.player_status = PlayerStatus::Active;
+
+                                            //send message to server
+                                            let server_object = ServerMessage{sender_id: player_locked.id.clone(), player: player_locked.clone()};
+                                            if let Ok(message_to_server) = serde_json::to_string(&server_object) {
+                                                println!("message to server: {:?}", message_to_server);
+                                                println!();
+                                                if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr.clone()) {
+                                                    println!(
+                                                        "Error while sending message {} to server: {:?}",
+                                                        message_to_server, e
+                                                    );
+                                                }                                                
+                                            }
+
                                         }
                                         Err(e) => println!("Error while locking player: {:?}", e),
                                     }
