@@ -1044,16 +1044,10 @@ fn handle_game_run(
                                     //hit enemy
                                     println!("hit enemy: {:?}", enemy.name);
                                     //update score
-
+                                    player.score = player.score + 1;
                                     require_update = true;
-                                    //player.score = player.score + 1;
-                                    // match player_ref.lock() {
-                                    //     Ok(mut player) => player.score += 1,
-                                    //     Err(e) => println!("Error while locking player {:?}", e),
-                                    // } 
-
-
-                                    
+                                  
+                                   
                                     //remove from hitables
                                     // match game_params.hittables.lock() {
                                     //     Ok(mut hittables) => {
@@ -1177,17 +1171,17 @@ fn start_server_listener(
                             if _player.id == player_id {
                                 if let PlayerStatus::Killed = _player.player_status {
                                     //player is killed. update position and status
-                                    // match player.lock() {
-                                    //     Ok(mut player_locked) => {
-                                    //         println!("Player {} killed", player_locked.name);
-                                    //         let position =
-                                    //             generate_position(&player_locked.mini_map);
-                                    //         player_locked.position =
-                                    //             Position::build(position.x, position.z);
-                                    //         player_locked.player_status = PlayerStatus::Active;
-                                    //     }
-                                    //     Err(e) => println!("Error while locking player: {:?}", e),
-                                    // }
+                                    match player.lock() {
+                                        Ok(mut player_locked) => {
+                                            println!("Player {} killed", player_locked.name);
+                                            let position =
+                                                generate_position(&player_locked.mini_map);
+                                            player_locked.position =
+                                                Position::build(position.x, position.z);
+                                            player_locked.player_status = PlayerStatus::Active;
+                                        }
+                                        Err(e) => println!("Error while locking player: {:?}", e),
+                                    }
                                 }
                             } else {
                                 //collect enemies
@@ -1383,6 +1377,8 @@ fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool
 fn send_message_to_server(socket: &Arc<UdpSocket>, server_addr: &String, player: Player, sender_id: String) {
     let server_object = ServerMessage{sender_id, player};
     if let Ok(message_to_server) = serde_json::to_string(&server_object) {
+            println!("message to server: {:?}", message_to_server);
+            println!();
             if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
             println!(
                 "Error while sending message {} to server: {:?}",
