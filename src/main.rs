@@ -69,7 +69,7 @@ async fn main() {
             }
             Status::Run => handle_game_run(
                 &server_addr,
-                player.clone(),
+                Arc::clone(&player),
                 &mut game_params,
                 &socket,
                 Arc::clone(&enemies),
@@ -822,16 +822,10 @@ fn handle_game_run(
 
     match player_ref.lock() {
         Ok(mut player) => {
-            //let mut _player = player.clone(); //to use in json parse
+          
             if is_key_pressed(KeyCode::Escape) {
-                //player.is_active = false;
                 player.player_status = PlayerStatus::Disconnent;
                 send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
-                // let _player = player.clone();
-                // if let Ok(message_to_server) = serde_json::to_string(&_player) {
-                //     //println!("{message_to_server}");
-                //     let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
-                // }
                 exit(0);
             }
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
@@ -944,11 +938,12 @@ fn handle_game_run(
             }
 
             //3d
+            let  game_params_position = vec3(player.position.x, PLAYER_HEIGHT, player.position.z);
             set_camera(&Camera3D {
                 render_target: Some(game_params.render_target.clone()),
-                position: game_params.position,
+                position: game_params_position,
                 up: up,
-                target: game_params.position + game_params.front,
+                target: game_params_position + game_params.front,
                 ..Default::default()
             });
             clear_background(LIGHTGRAY);
@@ -998,8 +993,10 @@ fn handle_game_run(
                 }
             }
 
+            
+
             //shooting
-            if is_mouse_button_pressed(MouseButton::Left) {                
+            if is_mouse_button_pressed(MouseButton::Left) {              
                 match game_params.hittables.lock() {
                     Ok(hittables) => {
                         let mut closest_hit_option: Option<Hit> = None;
@@ -1174,12 +1171,9 @@ fn start_server_listener(
                                             println!("Player {} killed", player_locked.name);
                                             let position =
                                                 generate_position(&player_locked.mini_map);
-                                            // player_locked.position =
-                                            //     Position::build(position.x, position.z);
-                                            player_locked.position = Position::build(1.0, 1.0);
+                                             player_locked.position =
+                                                Position::build(position.x, position.z);
                                             player_locked.player_status = PlayerStatus::Active;
-                                            println!("new player: {:?}", player_locked);
-
                                             //send message to server
                                             let server_object = ServerMessage{sender_id: player_locked.id.clone(), player: player_locked.clone()};
                                             if let Ok(message_to_server) = serde_json::to_string(&server_object) {
