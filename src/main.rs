@@ -838,9 +838,7 @@ fn handle_game_run(
         require_update = true;
     }
    
-    let delta = get_frame_time();
-    //let prev_pos = game_params.position.clone();
-   
+    let delta = get_frame_time();  
 
     match player_ref.lock() {
         Ok(mut player) => {
@@ -854,22 +852,18 @@ fn handle_game_run(
                 exit(0);
             }
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-                //game_params.position += game_params.front * MOVE_SPEED;
                 player.position_vec3 += front * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-                //game_params.position -= game_params.front * MOVE_SPEED;
                 player.position_vec3 -= front * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-                //game_params.position -= game_params.right * MOVE_SPEED;
                 player.position_vec3 -= right * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-                //game_params.position += game_params.right * MOVE_SPEED;
                 player.position_vec3 += right * MOVE_SPEED;
                 require_update = true;
             }
@@ -878,7 +872,6 @@ fn handle_game_run(
             handle_wall_collisions(
                 &game_params.mini_map,
                 prev_pos,
-               // &mut game_params.position,
                &mut player.position_vec3,
                 gap,
             );
@@ -890,57 +883,33 @@ fn handle_game_run(
             }
             game_params.last_mouse_position = mouse_position;
             
-            //game_params.yaw += mouse_delta.x * delta * LOOK_SPEED;
             player.yaw += mouse_delta.x * delta * LOOK_SPEED;
-            // game_params.pitch += mouse_delta.y * delta * -LOOK_SPEED;
             player.pitch += mouse_delta.y * delta * -LOOK_SPEED;
-            // game_params.pitch = if game_params.pitch > MAX_PITCH {
-            //     MAX_PITCH
-            // } else {
-            //     game_params.pitch
-            // };
             player.pitch = if player.pitch > MAX_PITCH {
                 MAX_PITCH
             } else {
                 player.pitch
             };
-            // game_params.pitch = if game_params.pitch < MIN_PITCH {
-            //     MIN_PITCH
-            // } else {
-            //     game_params.pitch
-            // };
             player.pitch = if player.pitch < MIN_PITCH {
                 MIN_PITCH
             } else {
                 player.pitch
             };
-            // game_params.front = vec3(
-            //     game_params.yaw.cos() * game_params.pitch.cos(),
-            //     game_params.pitch.sin(),
-            //     game_params.yaw.sin() * game_params.pitch.cos(),
-            // )
-            // .normalize();
             player.front = vec3(
                 player.yaw.cos() * player.pitch.cos(),
                 player.pitch.sin(),
                 player.yaw.sin() * player.pitch.cos(),
             )
             .normalize();
-            //game_params.right = game_params.front.cross(game_params.world_up).normalize();
             player.right = player.front.cross(game_params.world_up).normalize();
-            //let up = game_params.right.cross(game_params.front).normalize();
             let up = player.right.cross(player.front).normalize();
-            //game_params.position.y = PLAYER_HEIGHT;
             player.position_vec3.y = PLAYER_HEIGHT;
             //2d
             set_default_camera();
             clear_background(WHITE);
-            //player.position = Position::build(game_params.position.x, game_params.position.z);
             player.position = Position::build(player.position_vec3.x, player.position_vec3.z);
             //find projection of front on x_z plane
-            //let p = game_params.front.dot(game_params.world_up) * game_params.world_up;
             let p = player.front.dot(game_params.world_up) * game_params.world_up;
-            //let orientation = (game_params.front - p).normalize();
             let orientation = (player.front - p).normalize();
             player.orientation =
             orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
@@ -991,16 +960,7 @@ fn handle_game_run(
                     draw_enemies_on_minimap(&enemies, &game_params);
                 }
             }
-
-            //3d
-            // set_camera(&Camera3D {
-            //     render_target: Some(game_params.render_target.clone()),
-            //     position: game_params.position,
-            //     up: up,
-            //     target: game_params.position + game_params.front,
-            //     ..Default::default()
-            // });
-            
+           
             set_camera(&Camera3D {
                 render_target: Some(game_params.render_target.clone()),
                 position: player.position_vec3,
@@ -1062,18 +1022,11 @@ fn handle_game_run(
                     Ok(hittables) => {
                         let mut closest_hit_option: Option<Hit> = None;
 
-                        //println!("hittables: {:?}", hittables);
-                        //println!();
-
-                        // let start = vec3(player.position.x, 0.95, player.position.z)
-                        //     + game_params.front / 10.0;
-
-                        let start = vec3(player.position_vec3.x, 0.95, player.position_vec3.z)
+                        let start = vec3(player.position.x, 0.95, player.position.z)
                              + player.front / 10.0;
 
                         for hittable in hittables.iter() {
                             if let Hittable::Wall(shield) = hittable {
-                                //let hit_option = shield.hit(start, game_params.front);
                                 let hit_option = shield.hit(start, player.front);
                                 if let Some(hit) = hit_option {
                                     if let Some(ref closest_hit) = closest_hit_option {
@@ -1086,9 +1039,8 @@ fn handle_game_run(
                                 };
                             }
                             //implement for enemy
-                            if let Hittable::Enemy(player) = hittable {
-                                //let hit_option = player.hit(start, game_params.front);
-                                let hit_option = player.hit(start, player.front);
+                            if let Hittable::Enemy(enemy) = hittable {
+                                let hit_option = enemy.hit(start, player.front);
                                 if let Some(hit) = hit_option {
                                     if let Some(ref closest_hit) = closest_hit_option {
                                         if hit.t < closest_hit.t {
@@ -1112,7 +1064,7 @@ fn handle_game_run(
                                     require_update = true;
                                   
                                    
-                                    //remove from hitables
+                                    //remove from hitables with bug
                                     // match game_params.hittables.lock() {
                                     //     Ok(mut hittables) => {
                                     //         *hittables = hittables
@@ -1143,7 +1095,6 @@ fn handle_game_run(
                             closest_hit.p
                         } else {
                             println!("miss");
-                            //start + game_params.front * MAX_SHOT_RANGE
                             start + player.front * MAX_SHOT_RANGE
                         };
 
@@ -1203,7 +1154,6 @@ fn start_server_listener(
             // );
 
             if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
-                    println!();
                 match from_str::<Vec<Player>>(players_str) {
                     Ok(players) => {                       
                         //clear hittables from enemies                       
@@ -1227,8 +1177,6 @@ fn start_server_listener(
                         //filter player and handle if killed
                         let mut enemies_local_option: Option<Vec<Player>> = None;
                         for _player in players {
-                            //println!("player: {:?}", _player);
-                            //println!();
                             if _player.id == player_id {
                                 if let PlayerStatus::Killed = _player.player_status {
                                     //player is killed. update position and status
@@ -1243,8 +1191,6 @@ fn start_server_listener(
                                             //send message to server
                                             let server_object = ServerMessage{sender_id: player_locked.id.clone(), player: player_locked.clone()};
                                             if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-                                                //println!("message to server: {:?}", message_to_server);
-                                                //println!();
                                                 if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr.clone()) {
                                                     println!(
                                                         "Error while sending message {} to server: {:?}",
@@ -1311,12 +1257,7 @@ fn start_server_listener(
                 // }
             }
         }
-        for h in hittables.lock().unwrap().iter(){
-            println!("{:?}",h);
-        }
     });
-
-
 }
 fn draw_enemy_names_and_scores(enemies: &Vec<Player>) {
     let mut top_offset = NAME_MARGIN_TOP as f32 + 35.0;
