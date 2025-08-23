@@ -985,7 +985,7 @@ fn handle_game_run(
             let size = vec2(100.0, 100.0);
             draw_plane(center, size, None, BROWN);
 
-            //enemies
+            //draw enemies in 3D window
             if let Ok(enemies_result) = enemies.lock() {
                 if let Some(enemies) = enemies_result.clone() {
                     for enemy in enemies {
@@ -1060,8 +1060,12 @@ fn handle_game_run(
                                     //hit enemy
                                     println!("hit enemy: {:?}", enemy.name);
                                     //update score
-                                    player.score = player.score + 1;
-                                    require_update = true;
+                                    if let PlayerStatus::Active = enemy.player_status{
+                                        player.score = player.score + 1;
+                                        require_update = true;
+                                    }
+                                    enemy.player_status = PlayerStatus::Killed;
+                                  
                                   
                                    
                                     //remove from hitables
@@ -1091,8 +1095,6 @@ fn handle_game_run(
                                     // }                                     
                                     
                                     //notify server
-                                    enemy.player_status = PlayerStatus::Killed;
-
                                     send_message_to_server(
                                             socket,
                                             server_addr,
