@@ -1108,9 +1108,9 @@ fn handle_game_run(
             }
             */
 
-            if require_update{
+            //if require_update{
                 send_message_to_server(socket, server_addr, player.clone(), player.id.clone());             
-            }
+            //}
 
         }
         Err(e) => {
