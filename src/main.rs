@@ -64,7 +64,7 @@ async fn main() {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
             Status::EnterName => handle_name_input(&mut status, player.clone(), &server_addr),
             Status::StartServerListener => {
-                start_server_listener(Arc::clone(&socket),Arc::clone(&enemies),Arc::clone(&player),Arc::clone(&game_params.hittables), server_addr.clone());
+                start_server_listener(Arc::clone(&socket),Arc::clone(&enemies), player.clone(),Arc::clone(&game_params.hittables), server_addr.clone());
                 status = Status::Run;
             }
             Status::Run => handle_game_run(
@@ -1123,7 +1123,7 @@ fn start_server_listener(
     hittables: Arc<Mutex<Vec<Hittable>>>,
     server_addr: String
 ) {
-    let player_id = player.lock().unwrap().id.clone();    
+    let player_id = player.clone().lock().unwrap().id.clone();    
     //Server response listener
     thread::spawn(move || loop {
         let mut buffer = [0u8; 2048];
@@ -1174,15 +1174,17 @@ fn start_server_listener(
                                             println!("Player {} killed", player_locked.name);
                                             let position =
                                                 generate_position(&player_locked.mini_map);
-                                            player_locked.position =
-                                                Position::build(position.x, position.z);
+                                            // player_locked.position =
+                                            //     Position::build(position.x, position.z);
+                                            player_locked.position = Position::build(1.0, 1.0);
                                             player_locked.player_status = PlayerStatus::Active;
+                                            println!("new player: {:?}", player_locked);
 
                                             //send message to server
                                             let server_object = ServerMessage{sender_id: player_locked.id.clone(), player: player_locked.clone()};
                                             if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-                                                println!("message to server: {:?}", message_to_server);
-                                                println!();
+                                                //println!("message to server: {:?}", message_to_server);
+                                                //println!();
                                                 if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr.clone()) {
                                                     println!(
                                                         "Error while sending message {} to server: {:?}",
@@ -1389,8 +1391,8 @@ fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool
 fn send_message_to_server(socket: &Arc<UdpSocket>, server_addr: &String, player: Player, sender_id: String) {
     let server_object = ServerMessage{sender_id, player};
     if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-            println!("message to server: {:?}", message_to_server);
-            println!();
+            //println!("message to server: {:?}", message_to_server);
+            //println!();
             if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
             println!(
                 "Error while sending message {} to server: {:?}",
