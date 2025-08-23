@@ -52,8 +52,6 @@ async fn main() {
 
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
 
-
-
     //update server on the first round of the loop
     let mut is_first_tun = true;
 
@@ -1064,10 +1062,13 @@ fn handle_game_run(
                     Ok(hittables) => {
                         let mut closest_hit_option: Option<Hit> = None;
 
+                        //println!("hittables: {:?}", hittables);
+                        //println!();
+
                         // let start = vec3(player.position.x, 0.95, player.position.z)
                         //     + game_params.front / 10.0;
 
-                        let start = vec3(player.position.x, 0.95, player.position.z)
+                        let start = vec3(player.position_vec3.x, 0.95, player.position_vec3.z)
                              + player.front / 10.0;
 
                         for hittable in hittables.iter() {
@@ -1189,7 +1190,7 @@ fn start_server_listener(
     hittables: Arc<Mutex<Vec<Hittable>>>,
     server_addr: String
 ) {
-    let player_id = player.clone().lock().unwrap().id.clone();    
+    let player_id = player.lock().unwrap().id.clone();    
     //Server response listener
     thread::spawn(move || loop {
         let mut buffer = [0u8; 2048];
@@ -1202,15 +1203,10 @@ fn start_server_listener(
             // );
 
             if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
-                //let enemies_result = from_str::<Vec<Player>>(enemies_str);
-                //println!("player_id: {player_id}");
-                println!("message from server {}",players_str);
-                println!("");
+                    println!();
                 match from_str::<Vec<Player>>(players_str) {
                     Ok(players) => {                       
-                        //clear hittables from enemies temp disable
-                        
-                        /*
+                        //clear hittables from enemies                       
                         match hittables.lock() {
                             Ok(mut hittables_locked) => {
                                 *hittables_locked = hittables_locked
@@ -1226,12 +1222,13 @@ fn start_server_listener(
                                     .collect();
                             }
                             Err(e) => println!("Error while locking hittables {:?}", e),
-                        }
-                        */
+                        }                       
                         
                         //filter player and handle if killed
                         let mut enemies_local_option: Option<Vec<Player>> = None;
                         for _player in players {
+                            //println!("player: {:?}", _player);
+                            //println!();
                             if _player.id == player_id {
                                 if let PlayerStatus::Killed = _player.player_status {
                                     //player is killed. update position and status
@@ -1314,7 +1311,12 @@ fn start_server_listener(
                 // }
             }
         }
+        for h in hittables.lock().unwrap().iter(){
+            println!("{:?}",h);
+        }
     });
+
+
 }
 fn draw_enemy_names_and_scores(enemies: &Vec<Player>) {
     let mut top_offset = NAME_MARGIN_TOP as f32 + 35.0;
