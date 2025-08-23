@@ -1054,33 +1054,38 @@ fn handle_game_run(
 
                                     
                                     //remove from hitables
-                                    // match game_params.hittables.lock() {
-                                    //     Ok(mut hittables) => {
-                                    //         *hittables = hittables
-                                    //             .iter()
-                                    //             .filter(|hittable| {
-                                    //                 if let Hittable::Enemy(_enemy) = hittable {
-                                    //                     _enemy.id != enemy.id
-                                    //                 } else {
-                                    //                     true
-                                    //                 }
-                                    //             })
-                                    //             .cloned()
-                                    //             .collect();
-                                    //     }
-                                    //     Err(e) => println!("Error while locking hittables {:?}", e),
-                                    // }
+                                    match game_params.hittables.lock() {
+                                        Ok(mut hittables) => {
+                                            *hittables = hittables
+                                                .iter()
+                                                .filter(|hittable| {
+                                                    if let Hittable::Enemy(_enemy) = hittable {
+                                                        _enemy.id != enemy.id
+                                                    } else {
+                                                        true
+                                                    }
+                                                })
+                                                .cloned()
+                                                .collect();
+                                        }
+                                        Err(e) => println!("Error while locking hittables {:?}", e),
+                                    }
                                     //notify server
                                     enemy.player_status = PlayerStatus::Killed;
-                                    if let Ok(message_to_server) = serde_json::to_string(&enemy) {
-                                        send_message_to_server(
+                                    // if let Ok(message_to_server) = serde_json::to_string(&enemy) {
+                                    //     send_message_to_server(
+                                    //         socket,
+                                    //         server_addr,
+                                    //         &message_to_server,
+                                    //         player.id.clone()
+                                    //     );
+                                    // }
+                                    send_message_to_server(
                                             socket,
                                             server_addr,
-                                            &message_to_server,
-                                        );
-                                    }
-                                    
-
+                                            enemy.clone(),
+                                            player.id.clone()
+                                    );
 
 
                                 }
@@ -1118,10 +1123,11 @@ fn handle_game_run(
             */
 
             if require_update{
-                let _player = player.clone();
-                if let Ok(message_to_server) = serde_json::to_string(&_player) {
-                    send_message_to_server(socket, server_addr, &message_to_server);
-                }
+                //let _player = player.clone();
+                //if let Ok(message_to_server) = serde_json::to_string(&_player) {
+                   // send_message_to_server(socket, server_addr, &message_to_server, _player.id);
+                    send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
+                //}
             }
 
         }
@@ -1389,11 +1395,14 @@ fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool
     // );
     // hittables.push(Hittable::Wall(shield));
 }
-fn send_message_to_server(socket: &Arc<UdpSocket>, server_addr: &String, message_to_server: &str) {
-    if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
-        println!(
-            "Error while sending message {} to server: {:?}",
-            message_to_server, e
-        );
+fn send_message_to_server(socket: &Arc<UdpSocket>, server_addr: &String, player: Player, sender_id: String) {
+    let server_object = ServerMessage{sender_id, player};
+    if let Ok(message_to_server) = serde_json::to_string(&server_object) {
+            if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
+            println!(
+                "Error while sending message {} to server: {:?}",
+                message_to_server, e
+            );
+        }
     }
 }

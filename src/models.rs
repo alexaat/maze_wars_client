@@ -221,3 +221,9 @@ pub enum Hittable {
     Wall(Shield),
     Enemy(Player),
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ServerMessage{
+    pub sender_id: String,
+    pub player: Player
+}
