@@ -1064,24 +1064,32 @@ fn handle_game_run(
                                     require_update = true;
                                   
                                    
-                                    //remove from hitables with bug
-                                    //match game_params.hittables.lock() {
-                                        //Ok(mut hittables) => {
-                                            let _hittables: Vec<Hittable> = hittables
-                                                .iter()
-                                                .filter(|hittable| {
-                                                    if let Hittable::Enemy(_enemy) = hittable {
-                                                        _enemy.id != enemy.id
-                                                    } else {
-                                                        true
-                                                    }
-                                                })
-                                                .cloned()
-                                                .collect();
-                                            *hittables = _hittables;
-                                        //}
-                                        //Err(e) => println!("Error while locking hittables {:?}", e),
-                                    //}
+                                    //remove from hitables
+                                    // println!("before filter");
+                                    // for h in hittables.iter(){
+                                    //     println!("{:?}",h);
+                                    // }
+                                    // println!();
+                                    // println!();
+
+                                    let _hittables: Vec<Hittable> = hittables
+                                        .iter()
+                                        .filter(|hittable| {
+                                            if let Hittable::Enemy(_enemy) = hittable {
+                                                _enemy.id != enemy.id
+                                            } else {
+                                                true
+                                            }
+                                        })
+                                        .cloned()
+                                        .collect();
+                                    *hittables = _hittables;  
+
+                                    // println!("after filter");
+                                    // for h in hittables.iter(){
+                                    //     println!("{:?}",h);
+                                    // }                                     
+                                    
                                     //notify server
                                     enemy.player_status = PlayerStatus::Killed;
 
