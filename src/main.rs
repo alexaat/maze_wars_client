@@ -1055,10 +1055,9 @@ fn handle_game_run(
 
                         let end = if let Some(closest_hit) = closest_hit_option {
                             match closest_hit.hittable {
-                                Hittable::Wall(_) => println!("hit wall: {:?}", closest_hit.p),
+                                Hittable::Wall(_) => {},
                                 Hittable::Enemy(mut enemy) => {
                                     //hit enemy
-                                    println!("hit enemy: {:?}", enemy.name);
                                     //update score
                                     if let PlayerStatus::Active = enemy.player_status{
                                         player.score = player.score + 1;
@@ -1069,13 +1068,6 @@ fn handle_game_run(
                                   
                                    
                                     //remove from hitables
-                                    // println!("before filter");
-                                    // for h in hittables.iter(){
-                                    //     println!("{:?}",h);
-                                    // }
-                                    // println!();
-                                    // println!();
-
                                     let _hittables: Vec<Hittable> = hittables
                                         .iter()
                                         .filter(|hittable| {
@@ -1088,11 +1080,7 @@ fn handle_game_run(
                                         .cloned()
                                         .collect();
                                     *hittables = _hittables;  
-
-                                    // println!("after filter");
-                                    // for h in hittables.iter(){
-                                    //     println!("{:?}",h);
-                                    // }                                     
+                       
                                     
                                     //notify server
                                     send_message_to_server(
@@ -1105,7 +1093,6 @@ fn handle_game_run(
                             }
                             closest_hit.p
                         } else {
-                            println!("miss");
                             start + player.front * MAX_SHOT_RANGE
                         };
 
@@ -1123,17 +1110,6 @@ fn handle_game_run(
 
             draw_shots(&game_params.shots);
             remove_shots(&mut game_params.shots);
-
-            //draw hittables
-            /*
-            for hittable in &game_params.hittables {
-                if let Hittable::Wall(shield) = hittable {
-                    draw_sphere(shield.q, 0.05, None, PURPLE);
-                    draw_sphere(shield.q + shield.u, 0.05, None, GREEN);
-                    draw_sphere(shield.q + shield.v, 0.05, None, BLUE);
-                }
-            }
-            */
 
             if require_update{
                 send_message_to_server(socket, server_addr, player.clone(), player.id.clone());             
@@ -1250,22 +1226,22 @@ fn start_server_listener(
                     Err(e) => println!("Error while locking emenies: {e}"),
                 }
                 //clear hittables from enemies
-                // match hittables.lock() {
-                //     Ok(mut hittables_locked) => {
-                //         *hittables_locked = hittables_locked
-                //             .iter()
-                //             .filter(|item| {
-                //                 if let Hittable::Enemy(_) = item {
-                //                     false
-                //                 } else {
-                //                     true
-                //                 }
-                //             })
-                //             .cloned()
-                //             .collect();
-                //     }
-                //     Err(e) => println!("Error while locking hittables {:?}", e),
-                // }
+                match hittables.lock() {
+                    Ok(mut hittables_locked) => {
+                        *hittables_locked = hittables_locked
+                            .iter()
+                            .filter(|item| {
+                                if let Hittable::Enemy(_) = item {
+                                    false
+                                } else {
+                                    true
+                                }
+                            })
+                            .cloned()
+                            .collect();
+                    }
+                    Err(e) => println!("Error while locking hittables {:?}", e),
+                }
             }
         }
     });
