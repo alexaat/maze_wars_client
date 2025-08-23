@@ -1019,7 +1019,7 @@ fn handle_game_run(
             //shooting
             if is_mouse_button_pressed(MouseButton::Left) {              
                 match game_params.hittables.lock() {
-                    Ok(hittables) => {
+                    Ok(mut hittables) => {
                         let mut closest_hit_option: Option<Hit> = None;
 
                         let start = vec3(player.position.x, 0.95, player.position.z)
@@ -1065,22 +1065,23 @@ fn handle_game_run(
                                   
                                    
                                     //remove from hitables with bug
-                                    // match game_params.hittables.lock() {
-                                    //     Ok(mut hittables) => {
-                                    //         *hittables = hittables
-                                    //             .iter()
-                                    //             .filter(|hittable| {
-                                    //                 if let Hittable::Enemy(_enemy) = hittable {
-                                    //                     _enemy.id != enemy.id
-                                    //                 } else {
-                                    //                     true
-                                    //                 }
-                                    //             })
-                                    //             .cloned()
-                                    //             .collect();
-                                    //     }
-                                    //     Err(e) => println!("Error while locking hittables {:?}", e),
-                                    // }
+                                    //match game_params.hittables.lock() {
+                                        //Ok(mut hittables) => {
+                                            let _hittables: Vec<Hittable> = hittables
+                                                .iter()
+                                                .filter(|hittable| {
+                                                    if let Hittable::Enemy(_enemy) = hittable {
+                                                        _enemy.id != enemy.id
+                                                    } else {
+                                                        true
+                                                    }
+                                                })
+                                                .cloned()
+                                                .collect();
+                                            *hittables = _hittables;
+                                        //}
+                                        //Err(e) => println!("Error while locking hittables {:?}", e),
+                                    //}
                                     //notify server
                                     enemy.player_status = PlayerStatus::Killed;
 
