@@ -828,11 +828,12 @@ fn handle_game_run(
             if is_key_pressed(KeyCode::Escape) {
                 //player.is_active = false;
                 player.player_status = PlayerStatus::Disconnent;
-                let _player = player.clone();
-                if let Ok(message_to_server) = serde_json::to_string(&_player) {
-                    //println!("{message_to_server}");
-                    let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
-                }
+                send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
+                // let _player = player.clone();
+                // if let Ok(message_to_server) = serde_json::to_string(&_player) {
+                //     //println!("{message_to_server}");
+                //     let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+                // }
                 exit(0);
             }
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
@@ -1157,9 +1158,9 @@ fn start_server_listener(
 
             if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
                 //let enemies_result = from_str::<Vec<Player>>(enemies_str);
-                println!("player_id: {player_id}");
-                println!("{}",players_str);
-                println!("");
+                //println!("player_id: {player_id}");
+                //println!("{}",players_str);
+                //println!("");
                 match from_str::<Vec<Player>>(players_str) {
                     Ok(players) => {
                         //println!("players: {:?}", players);
