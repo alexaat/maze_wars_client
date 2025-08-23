@@ -1118,11 +1118,7 @@ fn handle_game_run(
             */
 
             if require_update{
-                //let _player = player.clone();
-                //if let Ok(message_to_server) = serde_json::to_string(&_player) {
-                   // send_message_to_server(socket, server_addr, &message_to_server, _player.id);
-                    send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
-                //}
+                send_message_to_server(socket, server_addr, player.clone(), player.id.clone());             
             }
 
         }
@@ -1153,12 +1149,13 @@ fn start_server_listener(
             if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
                 //let enemies_result = from_str::<Vec<Player>>(enemies_str);
                 //println!("player_id: {player_id}");
-                //println!("{}",players_str);
-                //println!("");
+                println!("message from server {}",players_str);
+                println!("");
                 match from_str::<Vec<Player>>(players_str) {
-                    Ok(players) => {
-                        //println!("players: {:?}", players);
+                    Ok(players) => {                       
                         //clear hittables from enemies temp disable
+                        
+                        /*
                         match hittables.lock() {
                             Ok(mut hittables_locked) => {
                                 *hittables_locked = hittables_locked
@@ -1175,27 +1172,27 @@ fn start_server_listener(
                             }
                             Err(e) => println!("Error while locking hittables {:?}", e),
                         }
+                        */
+                        
                         //filter player and handle if killed
                         let mut enemies_local_option: Option<Vec<Player>> = None;
                         for _player in players {
                             if _player.id == player_id {
-                                //println!("_player.id == player_id. _player:{:?}", _player);
                                 if let PlayerStatus::Killed = _player.player_status {
                                     //player is killed. update position and status
-                                    match player.lock() {
-                                        Ok(mut player_locked) => {
-                                            println!("Player {} killed", player_locked.name);
-                                            let position =
-                                                generate_position(&player_locked.mini_map);
-                                            player_locked.position =
-                                                Position::build(position.x, position.z);
-                                            player_locked.player_status = PlayerStatus::Active;
-                                        }
-                                        Err(e) => println!("Error while locking player: {:?}", e),
-                                    }
+                                    // match player.lock() {
+                                    //     Ok(mut player_locked) => {
+                                    //         println!("Player {} killed", player_locked.name);
+                                    //         let position =
+                                    //             generate_position(&player_locked.mini_map);
+                                    //         player_locked.position =
+                                    //             Position::build(position.x, position.z);
+                                    //         player_locked.player_status = PlayerStatus::Active;
+                                    //     }
+                                    //     Err(e) => println!("Error while locking player: {:?}", e),
+                                    // }
                                 }
                             } else {
-                                //println!("_player.id != player_id. _player:{:?}", _player);
                                 //collect enemies
                                 if let PlayerStatus::Active = _player.player_status{
                                     if let Some(ref mut enemies_local) = enemies_local_option {                                        
@@ -1207,12 +1204,12 @@ fn start_server_listener(
                                 }
 
                                 //update hittables
-                                match hittables.lock() {
-                                    Ok(mut hittables_locked) => {
-                                        hittables_locked.push(Hittable::Enemy(_player));
-                                    }
-                                    Err(e) => println!("Error while locking hittables {:?}", e),
-                                }
+                                // match hittables.lock() {
+                                //     Ok(mut hittables_locked) => {
+                                //         hittables_locked.push(Hittable::Enemy(_player));
+                                //     }
+                                //     Err(e) => println!("Error while locking hittables {:?}", e),
+                                // }
                             }
                         }
                         //update enemies
@@ -1225,32 +1222,28 @@ fn start_server_listener(
                 }
             } else {
                 println!("no enemies...",);
-                // let enemies_locked_result = enemies.lock();
-                // match enemies_locked_result {
-                //     Ok(mut enemies_locked) => *enemies_locked = None,
-                //     Err(e) => println!("Error while locking: {e}"),
-                // }
+
                 match enemies.lock() {
                     Ok(mut enemies_locked) => *enemies_locked = None,
                     Err(e) => println!("Error while locking emenies: {e}"),
                 }
                 //clear hittables from enemies
-                match hittables.lock() {
-                    Ok(mut hittables_locked) => {
-                        *hittables_locked = hittables_locked
-                            .iter()
-                            .filter(|item| {
-                                if let Hittable::Enemy(_) = item {
-                                    false
-                                } else {
-                                    true
-                                }
-                            })
-                            .cloned()
-                            .collect();
-                    }
-                    Err(e) => println!("Error while locking hittables {:?}", e),
-                }
+                // match hittables.lock() {
+                //     Ok(mut hittables_locked) => {
+                //         *hittables_locked = hittables_locked
+                //             .iter()
+                //             .filter(|item| {
+                //                 if let Hittable::Enemy(_) = item {
+                //                     false
+                //                 } else {
+                //                     true
+                //                 }
+                //             })
+                //             .cloned()
+                //             .collect();
+                //     }
+                //     Err(e) => println!("Error while locking hittables {:?}", e),
+                // }
             }
         }
     });
