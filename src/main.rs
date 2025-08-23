@@ -1080,9 +1080,6 @@ fn handle_game_run(
                                             enemy.clone(),
                                             player.id.clone()
                                     );
-
-
-
                                 }
                             }
                             closest_hit.p
@@ -1204,12 +1201,12 @@ fn start_server_listener(
                                 }
 
                                 //update hittables
-                                // match hittables.lock() {
-                                //     Ok(mut hittables_locked) => {
-                                //         hittables_locked.push(Hittable::Enemy(_player));
-                                //     }
-                                //     Err(e) => println!("Error while locking hittables {:?}", e),
-                                // }
+                                match hittables.lock() {
+                                    Ok(mut hittables_locked) => {
+                                        hittables_locked.push(Hittable::Enemy(_player));
+                                    }
+                                    Err(e) => println!("Error while locking hittables {:?}", e),
+                                }
                             }
                         }
                         //update enemies
