@@ -53,13 +53,8 @@ async fn main() {
     //end test
 
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
-    start_server_listener(
-        Arc::clone(&socket),
-        Arc::clone(&enemies),
-        Arc::clone(&player),
-        Arc::clone(&game_params.hittables),
-        &server_addr
-    );
+
+
 
     //update server on the first round of the loop
     let mut is_first_tun = true;
@@ -67,8 +62,10 @@ async fn main() {
     loop {
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
-            Status::EnterName => {
-                handle_name_input(&mut status, player.clone(), &server_addr);
+            Status::EnterName => handle_name_input(&mut status, player.clone(), &server_addr),
+            Status::StartServerListener => {
+                start_server_listener(Arc::clone(&socket),Arc::clone(&enemies),Arc::clone(&player),Arc::clone(&game_params.hittables), server_addr.clone());
+                status = Status::Run;
             }
             Status::Run => handle_game_run(
                 &server_addr,
@@ -753,9 +750,6 @@ fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
     if let Some(c) = get_char_pressed() {
         if c == 3 as char || c == 13 as char {
             *status = Status::EnterName;
-
-
-            
             return;
         }
 
@@ -789,7 +783,7 @@ fn handle_name_input(status: &mut Status, player_ref: Arc<Mutex<Player>>, server
             if let Some(c) = get_char_pressed() {
                 if c == 3 as char || c == 13 as char {
                     if player.name.len() > 2 {
-                        *status = Status::Run;
+                        *status = Status::StartServerListener;
                         return;
                     }
                 }
@@ -1127,10 +1121,9 @@ fn start_server_listener(
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
     player: Arc<Mutex<Player>>,
     hittables: Arc<Mutex<Vec<Hittable>>>,
-    server_addr: &String
+    server_addr: String
 ) {
     let player_id = player.lock().unwrap().id.clone();    
-    let server_addr = server_addr.clone();    
     //Server response listener
     thread::spawn(move || loop {
         let mut buffer = [0u8; 2048];

@@ -109,6 +109,7 @@ impl Position {
 pub enum Status {
     EnterIP,
     EnterName,
+    StartServerListener,
     Run,
 }
 
