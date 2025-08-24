@@ -14,6 +14,10 @@ pub const NAME_MARGIN_TOP: u32 = 595;
 pub const NAME_MARGIN_LEFT: u32 = 190;
 pub const SCORE_MARGIN_LEFT: u32 = 360;
 
+pub const FPS_MARGIN_LEFT: u32 = 4;
+pub const FPS_MARGIN_TOP: u32 = 14;
+pub const FONT_SIZE: f32 = 20.0;
+
 pub const MOVE_SPEED: f32 = 0.03;
 pub const LOOK_SPEED: f32 = 0.8;
 pub const SHOT_DURATION: i32 = 15;

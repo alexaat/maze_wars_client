@@ -55,12 +55,36 @@ async fn main() {
     //update server on the first round of the loop
     let mut is_first_tun = true;
 
+    let mut fps: f32 = 0.0;
+    let mut frame_counter: u32 = 0;
+    let mut prev_time = get_ms();
+
     loop {
+        frame_counter += 1;
+        if frame_counter > 60 {
+            let current_time = get_ms();
+
+            if let Some(prev) = prev_time {
+                if let Some(current) = current_time {
+                    let diff = current - prev;
+                    let diff = diff as f32 / 1000.0;
+                    fps = frame_counter as f32 / diff;
+                    frame_counter = 0;
+                    prev_time = Some(current);
+                }
+            }
+        }
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
             Status::EnterName => handle_name_input(&mut status, player.clone(), &server_addr),
             Status::StartServerListener => {
-                start_server_listener(Arc::clone(&socket),Arc::clone(&enemies), player.clone(),Arc::clone(&game_params.hittables), server_addr.clone());
+                start_server_listener(
+                    Arc::clone(&socket),
+                    Arc::clone(&enemies),
+                    player.clone(),
+                    Arc::clone(&game_params.hittables),
+                    server_addr.clone(),
+                );
                 status = Status::Run;
             }
             Status::Run => handle_game_run(
@@ -69,13 +93,14 @@ async fn main() {
                 &mut game_params,
                 &socket,
                 Arc::clone(&enemies),
-                &mut is_first_tun
+                &mut is_first_tun,
+                fps,
             ),
         }
         next_frame().await;
     }
 }
-fn init_player(game_params: &GameParams) -> Player{
+fn init_player(game_params: &GameParams) -> Player {
     let mut player = Player::new();
     player.current_map = String::from("map_one");
     player.mini_map = game_params.mini_map.clone();
@@ -90,16 +115,19 @@ fn init_player(game_params: &GameParams) -> Player{
     .normalize();
     let right = front.cross(game_params.world_up).normalize();
     let position_vec3 = generate_position(&game_params.mini_map);
-    
+
     player.yaw = yaw;
     player.pitch = pitch;
     player.front = front;
     player.right = right;
     player.position_vec3 = position_vec3;
-    player.position = Position { x: position_vec3.x, z: position_vec3.z};
+    player.position = Position {
+        x: position_vec3.x,
+        z: position_vec3.z,
+    };
     player
 }
-    
+
 fn init_game_params() -> GameParams {
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
@@ -830,15 +858,16 @@ fn handle_game_run(
     game_params: &mut GameParams,
     socket: &Arc<UdpSocket>,
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
-    is_first_tun: &mut bool
+    is_first_tun: &mut bool,
+    fps: f32,
 ) {
     let mut require_update = false;
     if *is_first_tun {
         *is_first_tun = false;
         require_update = true;
     }
-   
-    let delta = get_frame_time();  
+
+    let delta = get_frame_time();
 
     match player_ref.lock() {
         Ok(mut player) => {
@@ -872,7 +901,7 @@ fn handle_game_run(
             handle_wall_collisions(
                 &game_params.mini_map,
                 prev_pos,
-               &mut player.position_vec3,
+                &mut player.position_vec3,
                 gap,
             );
             let mouse_position: Vec2 = mouse_position().into();
@@ -882,7 +911,7 @@ fn handle_game_run(
                 require_update = true;
             }
             game_params.last_mouse_position = mouse_position;
-            
+
             player.yaw += mouse_delta.x * delta * LOOK_SPEED;
             player.pitch += mouse_delta.y * delta * -LOOK_SPEED;
             player.pitch = if player.pitch > MAX_PITCH {
@@ -912,7 +941,7 @@ fn handle_game_run(
             let p = player.front.dot(game_params.world_up) * game_params.world_up;
             let orientation = (player.front - p).normalize();
             player.orientation =
-            orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
+                orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
             draw_rectangle_lines(
                 MAP_MARGIN_LEFT as f32,
                 MAP_MARGIN_TOP as f32,
@@ -925,14 +954,21 @@ fn handle_game_run(
                 &player.name,
                 NAME_MARGIN_LEFT as f32,
                 NAME_MARGIN_TOP as f32,
-                20.0,
+                FONT_SIZE,
                 DARKGRAY,
             );
             draw_text(
                 format!("{}", player.score).as_str(),
                 SCORE_MARGIN_LEFT as f32,
                 NAME_MARGIN_TOP as f32,
-                20.0,
+                FONT_SIZE,
+                DARKGRAY,
+            );
+            draw_text(
+                format!("FPS: {:.1$}", fps, 2).as_str(),
+                FPS_MARGIN_LEFT as f32,
+                FPS_MARGIN_TOP as f32,
+                FONT_SIZE,
                 DARKGRAY,
             );
             render_mini_map(&game_params.mini_map, &game_params.mini_map_config);
@@ -960,7 +996,7 @@ fn handle_game_run(
                     draw_enemies_on_minimap(&enemies, &game_params);
                 }
             }
-           
+
             set_camera(&Camera3D {
                 render_target: Some(game_params.render_target.clone()),
                 position: player.position_vec3,
@@ -968,7 +1004,7 @@ fn handle_game_run(
                 target: player.position_vec3 + player.front,
                 ..Default::default()
             });
-            
+
             clear_background(LIGHTGRAY);
             draw_grid(50, 1., BLACK, GRAY);
             draw_walls(
@@ -1014,16 +1050,16 @@ fn handle_game_run(
                         );
                     }
                 }
-            }            
+            }
 
             //shooting
-            if is_mouse_button_pressed(MouseButton::Left) {              
+            if is_mouse_button_pressed(MouseButton::Left) {
                 match game_params.hittables.lock() {
                     Ok(mut hittables) => {
                         let mut closest_hit_option: Option<Hit> = None;
 
-                        let start = vec3(player.position.x, 0.95, player.position.z)
-                             + player.front / 10.0;
+                        let start =
+                            vec3(player.position.x, 0.95, player.position.z) + player.front / 10.0;
 
                         for hittable in hittables.iter() {
                             if let Hittable::Wall(shield) = hittable {
@@ -1055,18 +1091,16 @@ fn handle_game_run(
 
                         let end = if let Some(closest_hit) = closest_hit_option {
                             match closest_hit.hittable {
-                                Hittable::Wall(_) => {},
+                                Hittable::Wall(_) => {}
                                 Hittable::Enemy(mut enemy) => {
                                     //hit enemy
                                     //update score
-                                    if let PlayerStatus::Active = enemy.player_status{
+                                    if let PlayerStatus::Active = enemy.player_status {
                                         player.score = player.score + 1;
                                         require_update = true;
                                     }
                                     enemy.player_status = PlayerStatus::Killed;
-                                  
-                                  
-                                   
+
                                     //remove from hitables
                                     let _hittables: Vec<Hittable> = hittables
                                         .iter()
@@ -1079,15 +1113,14 @@ fn handle_game_run(
                                         })
                                         .cloned()
                                         .collect();
-                                    *hittables = _hittables;  
-                       
-                                    
+                                    *hittables = _hittables;
+
                                     //notify server
                                     send_message_to_server(
-                                            socket,
-                                            server_addr,
-                                            enemy.clone(),
-                                            player.id.clone()
+                                        socket,
+                                        server_addr,
+                                        enemy.clone(),
+                                        player.id.clone(),
                                     );
                                 }
                             }
@@ -1111,10 +1144,9 @@ fn handle_game_run(
             draw_shots(&game_params.shots);
             remove_shots(&mut game_params.shots);
 
-            if require_update{
-                send_message_to_server(socket, server_addr, player.clone(), player.id.clone());             
+            if require_update {
+                send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
             }
-
         }
         Err(e) => {
             println!("Error while locking player: {:?}", e)
@@ -1126,9 +1158,9 @@ fn start_server_listener(
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
     player: Arc<Mutex<Player>>,
     hittables: Arc<Mutex<Vec<Hittable>>>,
-    server_addr: String
+    server_addr: String,
 ) {
-    let player_id = player.lock().unwrap().id.clone();    
+    let player_id = player.lock().unwrap().id.clone();
     //Server response listener
     thread::spawn(move || loop {
         let mut buffer = [0u8; 2048];
@@ -1142,8 +1174,8 @@ fn start_server_listener(
 
             if let Ok(players_str) = std::str::from_utf8(&buffer[..size]) {
                 match from_str::<Vec<Player>>(players_str) {
-                    Ok(players) => {                       
-                        //clear hittables from enemies                       
+                    Ok(players) => {
+                        //clear hittables from enemies
                         match hittables.lock() {
                             Ok(mut hittables_locked) => {
                                 *hittables_locked = hittables_locked
@@ -1159,8 +1191,8 @@ fn start_server_listener(
                                     .collect();
                             }
                             Err(e) => println!("Error while locking hittables {:?}", e),
-                        }                       
-                        
+                        }
+
                         //filter player and handle if killed
                         let mut enemies_local_option: Option<Vec<Player>> = None;
                         for _player in players {
@@ -1172,30 +1204,37 @@ fn start_server_listener(
                                             println!("Player {} killed", player_locked.name);
                                             let position =
                                                 generate_position(&player_locked.mini_map);
-                                            player_locked.position_vec3 = position;    
-                                            player_locked.position = Position::build(position.x, position.z);
+                                            player_locked.position_vec3 = position;
+                                            player_locked.position =
+                                                Position::build(position.x, position.z);
                                             player_locked.player_status = PlayerStatus::Active;
                                             //send message to server
-                                            let server_object = ServerMessage{sender_id: player_locked.id.clone(), player: player_locked.clone()};
-                                            if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-                                                if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr.clone()) {
+                                            let server_object = ServerMessage {
+                                                sender_id: player_locked.id.clone(),
+                                                player: player_locked.clone(),
+                                            };
+                                            if let Ok(message_to_server) =
+                                                serde_json::to_string(&server_object)
+                                            {
+                                                if let Err(e) = socket.send_to(
+                                                    message_to_server.as_bytes(),
+                                                    server_addr.clone(),
+                                                ) {
                                                     println!(
                                                         "Error while sending message {} to server: {:?}",
                                                         message_to_server, e
                                                     );
-                                                }                                                
+                                                }
                                             }
-
                                         }
                                         Err(e) => println!("Error while locking player: {:?}", e),
                                     }
                                 }
                             } else {
                                 //collect enemies
-                                if let PlayerStatus::Active = _player.player_status{
-                                    if let Some(ref mut enemies_local) = enemies_local_option {                                        
+                                if let PlayerStatus::Active = _player.player_status {
+                                    if let Some(ref mut enemies_local) = enemies_local_option {
                                         enemies_local.push(_player.clone());
-                                                                        
                                     } else {
                                         enemies_local_option = Some(vec![_player.clone()]);
                                     }
@@ -1381,12 +1420,17 @@ fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool
     // );
     // hittables.push(Hittable::Wall(shield));
 }
-fn send_message_to_server(socket: &Arc<UdpSocket>, server_addr: &String, player: Player, sender_id: String) {
-    let server_object = ServerMessage{sender_id, player};
+fn send_message_to_server(
+    socket: &Arc<UdpSocket>,
+    server_addr: &String,
+    player: Player,
+    sender_id: String,
+) {
+    let server_object = ServerMessage { sender_id, player };
     if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-            //println!("message to server: {:?}", message_to_server);
-            //println!();
-            if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
+        //println!("message to server: {:?}", message_to_server);
+        //println!();
+        if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
             println!(
                 "Error while sending message {} to server: {:?}",
                 message_to_server, e

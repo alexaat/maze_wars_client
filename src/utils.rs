@@ -1,6 +1,7 @@
 use macroquad::prelude::{vec3, Vec3};
 use std::f64::consts::PI;
 use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 //read content of the file into string
 pub fn read_file(file_path: &str) -> Result<std::string::String, std::io::Error> {
@@ -94,4 +95,11 @@ pub fn is_valid_ip_char(c: char) -> bool {
 
 pub fn is_valid_name_char(c: char) -> bool {
     c >= ' ' && c <= '~'
+}
+
+pub fn get_ms() -> Option<u128> {
+    if let Ok(t) = SystemTime::now().duration_since(UNIX_EPOCH) {
+        return Some(t.as_millis());
+    }
+    None
 }
