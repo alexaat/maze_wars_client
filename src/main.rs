@@ -57,6 +57,8 @@ async fn main() {
     let mut frame_counter: u32 = 0;
     let mut prev_time = get_ms();
 
+    let mut selexted_map_index = 0;
+
     loop {
         frame_counter += 1;
         if frame_counter > 60 {
@@ -75,7 +77,7 @@ async fn main() {
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
             Status::EnterName => handle_name_input(&mut status, &mut player_name, &server_addr),
-            Status::SelectMap => select_map_handler(&mut status, &mut map_path),
+            Status::SelectMap => select_map_handler(&mut status, &mut map_path, &server_addr, &player_name, &mut selexted_map_index),
             Status::Init => init_game_handler(&mut status, &mut game_params, &mut player, &player_name, &map_path),            
             Status::StartServerListener => {
                if let Some(ref mut _game_params) = game_params{
@@ -844,51 +846,64 @@ fn handle_name_input(status: &mut Status, player_name: &mut String, server_addr:
     if is_key_pressed(KeyCode::Backspace) {
         player_name.pop();
     } 
+
+    if is_key_pressed(KeyCode::Escape) {
+        exit(0);
+    }
       
 
 }
-fn select_map_handler(status: &mut Status, map_path: &mut String){
-    *map_path = "assets/map_one.txt".to_string();
-    *status = Status::Init;
-    /*
+fn select_map_handler(status: &mut Status, map_path: &mut String, server_addr: &String, player_name: &String, selected_path_index: &mut i32){
+    
     if let Ok(paths) = fs::read_dir(MAPS_DIRECTORY_PATH){
         let mut map_paths = vec![];        
         for path in paths {
             if let Ok(_path) = path{               
                 map_paths.push(_path.path());
+                println!("{:?}",_path.path());
             }           
         }
         if map_paths.len() == 0 {
-            *status = Status::StartServerListener;
+            *status = Status::Init;
+            return;
+        }
+
+        draw_text(format!("Enter server IP addrsss. Example: 127.0.0.1:4000    {}", server_addr).as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+        draw_text(format!("Enter your name:     {}", player_name).as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
+        
+        let mut off_set_y = 70.0;
+        for (index, path) in map_paths.iter().enumerate(){
+            let text = format!("{:?}", path.display());
+            if index as i32 == *selected_path_index{
+                draw_rectangle(0.0, off_set_y - 5.0 - 12.0 , screen_width(), 25.0, LIGHTGRAY);              
+                draw_text(text.as_str(), 10.0, off_set_y, 20.0, BLACK);
+            }else {               
+                draw_text(text.as_str(), 10.0, off_set_y, 20.0, LIGHTGRAY);
+            }
+            off_set_y += 30.0;
+        }        
+
+        if is_key_pressed(KeyCode::Down) {
+            *selected_path_index =  i32::min(map_paths.len() as i32 - 1, selected_path_index.clone() + 1);
+        }
+        if is_key_pressed(KeyCode::Up) {
+            *selected_path_index =  i32::max(0, selected_path_index.clone() - 1);
         }
 
         if let Some(c) = get_char_pressed() {
             if c == 3 as char || c == 13 as char {
-                let path = "assets/map_three.txt";
-                if let Ok(mini_map) = parse_map(path){                   
-                    if let Ok(mut player_locked) = player.lock(){
-                        game_params.mini_map = mini_map.clone();
-                        player_locked.mini_map = mini_map.clone();
-                        player_locked.current_map = String::from(path);
-                        let mini_map_config = MiniMapConfig::new(
-                            &mini_map,
-                            MAP_WIDTH,
-                            MAP_HEIGHT,
-                            MAP_MARGIN_LEFT,
-                            MAP_MARGIN_TOP,
-                            BLACK
-                        );
-                        game_params.mini_map_config = mini_map_config;
-                    }
-                }              
-               
-                *status = Status::StartServerListener;
-                return;
-            }
-        }        
+                *map_path = format!("{}",map_paths[*selected_path_index as usize].display());
+                *status = Status::Init;
+            }            
+        } 
+        if is_key_pressed(KeyCode::Escape) {
+            exit(0);
+        }         
 
+    } else {
+        *status = Status::Init;
     }
-    */
+   
 
 }
 fn init_game_handler(status: &mut Status, game_params: &mut Option<GameParams>, player: &mut Option<Arc<Mutex<Player>>>, player_name: &String, map_path: &String) {    
