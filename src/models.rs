@@ -21,7 +21,6 @@ pub struct Player {
     pub name: String,
     pub position: Position,
     pub score: u32,
-    //pub is_active: bool,
     pub player_status: PlayerStatus,
     pub orientation: f32,
     pub current_map: String,
@@ -46,7 +45,6 @@ impl Player {
             name: String::from(""),
             position: Position::new(),
             score: 0,
-            //is_active: true,
             player_status: PlayerStatus::Active,
             orientation: 0.0,
             current_map: String::from(""),
@@ -126,10 +124,12 @@ pub enum Status {
     EnterIP,
     EnterName,
     StartServerListener,
+    SelectMap,
+    Init,
     Run,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MiniMapConfig {
     pub cell_width: f32,
     pub cell_height: f32,
@@ -160,6 +160,7 @@ impl MiniMapConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct GameParams {
     pub wall_texture: Texture2D,
     pub sky_texture: Texture2D,
@@ -172,6 +173,13 @@ pub struct GameParams {
     pub world_up: Vec3,
     pub shots: Vec<Shot>,
     pub hittables: Arc<Mutex<Vec<Hittable>>>,
+}
+
+impl GameParams{
+    // pub fn new() -> Self{
+    //     GameParams {
+    //          wall_texture: , sky_texture: (), arrow_texture: (), eye_texture: (), mini_map_config: (), render_target: (), last_mouse_position: (), mini_map: (), world_up: (), shots: (), hittables: () }
+    // }
 }
 
 #[derive(Debug, Clone)]

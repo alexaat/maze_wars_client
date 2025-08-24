@@ -15,7 +15,7 @@ use utils::*;
 use std::net::UdpSocket;
 use std::sync::Arc;
 
-use std::thread;
+use std::{thread,fs};
 
 fn conf() -> Conf {
     Conf {
@@ -29,15 +29,13 @@ fn conf() -> Conf {
 #[macroquad::main(conf)]
 async fn main() {
     //send request from client:  echo -n 'Hello from client' | nc -u 127.0.0.1 4000
-
     let mut status = Status::EnterIP;
     let mut server_addr = String::new();
-    //init game engine
-    let mut game_params = init_game_params();
-    //init player
-    let player = init_player(&game_params);
-
-    let player = Arc::new(Mutex::new(player));
+    let mut player_name = String::new();
+    let mut map_path = String::from(DEFAULT_MAP_PATH);
+    
+    let mut game_params: Option<GameParams> = None;
+    let mut player: Option<Arc<Mutex<Player>>> = None;
 
     set_cursor_grab(true);
     show_mouse(false);
@@ -76,33 +74,58 @@ async fn main() {
         }
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
-            Status::EnterName => handle_name_input(&mut status, player.clone(), &server_addr),
+            Status::EnterName => handle_name_input(&mut status, &mut player_name, &server_addr),
+            Status::SelectMap => select_map_handler(&mut status, &mut map_path),
+            Status::Init => init_game_handler(&mut status, &mut game_params, &mut player, &player_name, &map_path),            
             Status::StartServerListener => {
-                start_server_listener(
-                    Arc::clone(&socket),
-                    Arc::clone(&enemies),
-                    player.clone(),
-                    Arc::clone(&game_params.hittables),
-                    server_addr.clone(),
-                );
-                status = Status::Run;
-            }
-            Status::Run => handle_game_run(
-                &server_addr,
-                Arc::clone(&player),
-                &mut game_params,
-                &socket,
-                Arc::clone(&enemies),
-                &mut is_first_tun,
-                fps,
-            ),
+               if let Some(ref mut _game_params) = game_params{
+                    if let Some(ref _player) = player{
+                        start_server_listener(
+                            Arc::clone(&socket),
+                            Arc::clone(&enemies),
+                            _player.clone(),
+                            Arc::clone(&_game_params.hittables),
+                            server_addr.clone(),
+                        );
+                        status = Status::Run;
+                    } else {
+                        println!("error while initialisation player");
+                        exit(0);
+                    }
+                } else {
+                        println!("error while initialisation game parameters");
+                        exit(0);
+                }
+            }            
+            Status::Run =>{
+                if let Some(ref mut _game_params) = game_params{
+                    if let Some(ref _player) = player{
+                    handle_game_run(
+                        &server_addr,
+                        Arc::clone(&_player),
+                        _game_params,
+                        &socket,
+                        Arc::clone(&enemies),
+                        &mut is_first_tun,
+                        fps,
+                    );
+                    } else {
+                        println!("error while initialisation player");
+                        exit(0);
+                    }
+                } else {
+                        println!("error while initialisation game parameters");
+                        exit(0);
+                }
+            },
         }
         next_frame().await;
     }
 }
-fn init_player(game_params: &GameParams) -> Player {
+fn init_player(game_params: &GameParams, player_name: &String, map_path: &String) -> Player {
     let mut player = Player::new();
-    player.current_map = String::from("map_one");
+    player.name = String::from(player_name);
+    player.current_map = String::from(map_path);
     player.mini_map = game_params.mini_map.clone();
 
     let yaw: f32 = 0.0; //rotation around y axes
@@ -127,8 +150,7 @@ fn init_player(game_params: &GameParams) -> Player {
     };
     player
 }
-
-fn init_game_params() -> GameParams {
+fn init_game_params(map_path: &String) -> GameParams {
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/grey.png"), None);
     let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
     let arrow_texture =
@@ -136,7 +158,7 @@ fn init_game_params() -> GameParams {
     let eye_texture =
         Image::from_file_with_format(include_bytes!("../assets/eye_texture.png"), None).unwrap();
 
-    let mini_map = match parse_map("assets/map_one.txt") {
+    let mini_map = match parse_map(map_path) {
         Ok(map) => map,
         Err(error) => {
             println!("Problem opening the file: {error:?}");
@@ -160,27 +182,12 @@ fn init_game_params() -> GameParams {
         },
     );
     let world_up = vec3(0.0, 1.0, 0.0);
-    // let yaw: f32 = 1.18; //rotation around y axes
-    // let pitch: f32 = 0.0; //tilt up/down
-    // let front = vec3(
-    //     yaw.cos() * pitch.cos(),
-    //     pitch.sin(),
-    //     yaw.sin() * pitch.cos(),
-    // )
-    // .normalize();
-    // let right = front.cross(world_up).normalize();
-    // let position = generate_position(&mini_map);
     let last_mouse_position: Vec2 = mouse_position().into();
 
     let shots = vec![];
 
     let hittables = Arc::new(Mutex::new(vec![]));
     add_shields(Arc::clone(&hittables), &mini_map);
-
-    // let mut enemy = Player::new();
-    // enemy.name = "Sam".to_string();
-    // enemy.position = Position::build(7.0, 1.0);
-    // hittables.push(Hittable::Enemy(enemy));
 
     GameParams {
         wall_texture,
@@ -189,11 +196,6 @@ fn init_game_params() -> GameParams {
         eye_texture,
         mini_map_config,
         render_target,
-        // yaw,
-        // pitch,
-        // front,
-        // right,
-        // position,
         last_mouse_position,
         mini_map,
         world_up,
@@ -814,43 +816,87 @@ fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
         exit(0);
     }
 }
-fn handle_name_input(status: &mut Status, player_ref: Arc<Mutex<Player>>, server_addr: &String) {
+fn handle_name_input(status: &mut Status, player_name: &mut String, server_addr: &String) {
     clear_background(BLACK);
+   
+    let mut server_addr_display =
+        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+    server_addr_display.push_str(server_addr);
 
-    match player_ref.lock() {
-        Ok(mut player) => {
-            let mut server_addr_display =
-                "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
-            server_addr_display.push_str(server_addr);
+    let mut player_name_display = "Enter your name:     ".to_string();
+    player_name_display.push_str(&player_name);
 
-            let mut player_name_display = "Enter your name:     ".to_string();
-            player_name_display.push_str(&player.name);
+    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+    draw_text(player_name_display.as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
 
-            draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
-            draw_text(player_name_display.as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
-
-            if let Some(c) = get_char_pressed() {
-                if c == 3 as char || c == 13 as char {
-                    if player.name.len() > 2 {
-                        *status = Status::StartServerListener;
-                        return;
-                    }
-                }
-                if player.name.len() < MAX_NAME_LENGTH && is_valid_name_char(c) {
-                    player.name.push(c);
-                }
-            }
-
-            if is_key_pressed(KeyCode::Backspace) {
-                player.name.pop();
+    if let Some(c) = get_char_pressed() {
+        if c == 3 as char || c == 13 as char {
+            if player_name.len() > 2 {
+                *status = Status::SelectMap;
+                return;
             }
         }
-        Err(e) => println!("Error while locking player: {:?}", e),
+        if player_name.len() < MAX_NAME_LENGTH && is_valid_name_char(c) {
+            player_name.push(c);
+        }
     }
 
-    if is_key_pressed(KeyCode::Escape) {
-        exit(0);
+    if is_key_pressed(KeyCode::Backspace) {
+        player_name.pop();
+    } 
+      
+
+}
+fn select_map_handler(status: &mut Status, map_path: &mut String){
+    *map_path = "assets/map_one.txt".to_string();
+    *status = Status::Init;
+    /*
+    if let Ok(paths) = fs::read_dir(MAPS_DIRECTORY_PATH){
+        let mut map_paths = vec![];        
+        for path in paths {
+            if let Ok(_path) = path{               
+                map_paths.push(_path.path());
+            }           
+        }
+        if map_paths.len() == 0 {
+            *status = Status::StartServerListener;
+        }
+
+        if let Some(c) = get_char_pressed() {
+            if c == 3 as char || c == 13 as char {
+                let path = "assets/map_three.txt";
+                if let Ok(mini_map) = parse_map(path){                   
+                    if let Ok(mut player_locked) = player.lock(){
+                        game_params.mini_map = mini_map.clone();
+                        player_locked.mini_map = mini_map.clone();
+                        player_locked.current_map = String::from(path);
+                        let mini_map_config = MiniMapConfig::new(
+                            &mini_map,
+                            MAP_WIDTH,
+                            MAP_HEIGHT,
+                            MAP_MARGIN_LEFT,
+                            MAP_MARGIN_TOP,
+                            BLACK
+                        );
+                        game_params.mini_map_config = mini_map_config;
+                    }
+                }              
+               
+                *status = Status::StartServerListener;
+                return;
+            }
+        }        
+
     }
+    */
+
+}
+fn init_game_handler(status: &mut Status, game_params: &mut Option<GameParams>, player: &mut Option<Arc<Mutex<Player>>>, player_name: &String, map_path: &String) {    
+    let params = init_game_params(map_path);
+    *game_params = Some(params.clone());
+    let _player = init_player(&params, player_name, map_path);  
+    *player = Some(Arc::new(Mutex::new(_player))); 
+    *status = Status::StartServerListener;
 }
 fn handle_game_run(
     server_addr: &String,

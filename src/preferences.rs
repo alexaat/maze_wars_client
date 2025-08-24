@@ -30,3 +30,6 @@ pub const PLAYER_HEIGHT: f32 = 1.0;
 
 pub const MAX_PITCH: f32 = 0.35;
 pub const MIN_PITCH: f32 = -0.35;
+
+pub const MAPS_DIRECTORY_PATH: &str = "maps";
+pub const DEFAULT_MAP_PATH: &str = "assets/map_one.txt";
