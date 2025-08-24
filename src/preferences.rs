@@ -10,13 +10,14 @@ pub const MAP_WIDTH: u32 = 250;
 pub const MAP_HEIGHT: u32 = 120;
 pub const MAP_MARGIN_LEFT: u32 = 178;
 pub const MAP_MARGIN_TOP: u32 = 450;
-pub const NAME_MARGIN_TOP: u32 = 595;
+pub const NAME_MARGIN_TOP: u32 = 585;
 pub const NAME_MARGIN_LEFT: u32 = 190;
 pub const SCORE_MARGIN_LEFT: u32 = 360;
 
 pub const FPS_MARGIN_LEFT: u32 = 4;
 pub const FPS_MARGIN_TOP: u32 = 14;
-pub const FONT_SIZE: f32 = 20.0;
+pub const CONSOLE_FONT_SIZE: f32 = 18.0;
+pub const GAME_FONT_SIZE: u16 = 10;
 
 pub const MOVE_SPEED: f32 = 0.03;
 pub const LOOK_SPEED: f32 = 0.8;
@@ -33,3 +34,5 @@ pub const MIN_PITCH: f32 = -0.35;
 
 pub const MAPS_DIRECTORY_PATH: &str = "maps";
 pub const DEFAULT_MAP_PATH: &str = "assets/map_one.txt";
+
+

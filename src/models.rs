@@ -175,13 +175,6 @@ pub struct GameParams {
     pub hittables: Arc<Mutex<Vec<Hittable>>>,
 }
 
-impl GameParams{
-    // pub fn new() -> Self{
-    //     GameParams {
-    //          wall_texture: , sky_texture: (), arrow_texture: (), eye_texture: (), mini_map_config: (), render_target: (), last_mouse_position: (), mini_map: (), world_up: (), shots: (), hittables: () }
-    // }
-}
-
 #[derive(Debug, Clone)]
 pub struct Shot {
     pub start: Vec3,

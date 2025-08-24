@@ -37,8 +37,11 @@ async fn main() {
     let mut game_params: Option<GameParams> = None;
     let mut player: Option<Arc<Mutex<Player>>> = None;
 
+    let font = load_ttf_font("fonts/AltoMono.ttf").await.unwrap();
+
     set_cursor_grab(true);
     show_mouse(false);
+    
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
     // test
     // let mut enemy = Player::new();
@@ -110,6 +113,7 @@ async fn main() {
                         Arc::clone(&enemies),
                         &mut is_first_tun,
                         fps,
+                        &font
                     );
                     } else {
                         println!("error while initialisation player");
@@ -798,7 +802,7 @@ fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
     let mut server_addr_display =
         "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
     server_addr_display.push_str(server_addr);
-    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
+    draw_text(server_addr_display.as_str(), 10.0, 20.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
 
     if let Some(c) = get_char_pressed() {
         if c == 3 as char || c == 13 as char {
@@ -828,8 +832,8 @@ fn handle_name_input(status: &mut Status, player_name: &mut String, server_addr:
     let mut player_name_display = "Enter your name:     ".to_string();
     player_name_display.push_str(&player_name);
 
-    draw_text(server_addr_display.as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
-    draw_text(player_name_display.as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
+    draw_text(server_addr_display.as_str(), 10.0, 20.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
+    draw_text(player_name_display.as_str(), 10.0, 40.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
 
     if let Some(c) = get_char_pressed() {
         if c == 3 as char || c == 13 as char {
@@ -859,8 +863,7 @@ fn select_map_handler(status: &mut Status, map_path: &mut String, server_addr: &
         let mut map_paths = vec![];        
         for path in paths {
             if let Ok(_path) = path{               
-                map_paths.push(_path.path());
-                println!("{:?}",_path.path());
+                map_paths.push(_path.path());               
             }           
         }
         if map_paths.len() == 0 {
@@ -868,17 +871,17 @@ fn select_map_handler(status: &mut Status, map_path: &mut String, server_addr: &
             return;
         }
 
-        draw_text(format!("Enter server IP addrsss. Example: 127.0.0.1:4000    {}", server_addr).as_str(), 10.0, 20.0, 20.0, LIGHTGRAY);
-        draw_text(format!("Enter your name:     {}", player_name).as_str(), 10.0, 40.0, 20.0, LIGHTGRAY);
+        draw_text(format!("Enter server IP addrsss. Example: 127.0.0.1:4000    {}", server_addr).as_str(), 10.0, 20.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
+        draw_text(format!("Enter your name:     {}", player_name).as_str(), 10.0, 40.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
         
         let mut off_set_y = 70.0;
         for (index, path) in map_paths.iter().enumerate(){
             let text = format!("{:?}", path.display());
             if index as i32 == *selected_path_index{
-                draw_rectangle(0.0, off_set_y - 5.0 - 12.0 , screen_width(), 25.0, LIGHTGRAY);              
-                draw_text(text.as_str(), 10.0, off_set_y, 20.0, BLACK);
+                draw_rectangle(0.0, off_set_y - 5.0 - 12.0 , screen_width(), CONSOLE_FONT_SIZE + 5.0, LIGHTGRAY);              
+                draw_text(text.as_str(), 10.0, off_set_y, CONSOLE_FONT_SIZE, BLACK);
             }else {               
-                draw_text(text.as_str(), 10.0, off_set_y, 20.0, LIGHTGRAY);
+                draw_text(text.as_str(), 10.0, off_set_y, CONSOLE_FONT_SIZE, LIGHTGRAY);
             }
             off_set_y += 30.0;
         }        
@@ -921,6 +924,7 @@ fn handle_game_run(
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
     is_first_tun: &mut bool,
     fps: f32,
+    font: &Font
 ) {
     let mut require_update = false;
     if *is_first_tun {
@@ -1011,25 +1015,23 @@ fn handle_game_run(
                 2.0,
                 DARKGRAY,
             );
-            draw_text(
-                &player.name,
-                NAME_MARGIN_LEFT as f32,
-                NAME_MARGIN_TOP as f32,
-                FONT_SIZE,
-                DARKGRAY,
-            );
-            draw_text(
-                format!("{}", player.score).as_str(),
-                SCORE_MARGIN_LEFT as f32,
-                NAME_MARGIN_TOP as f32,
-                FONT_SIZE,
-                DARKGRAY,
-            );
+
+            let params = TextParams{
+                font: Some(font),
+                font_size: GAME_FONT_SIZE,
+                font_scale: 1.0,
+                font_scale_aspect: 1.0,
+                rotation: 0.0,
+                color: BLACK
+            };
+            draw_text_ex(&player.name, NAME_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, params.clone());
+            draw_text_ex(format!("{}", player.score).as_str(), SCORE_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, params);
+
             draw_text(
                 format!("FPS: {:.1$}", fps, 2).as_str(),
                 FPS_MARGIN_LEFT as f32,
                 FPS_MARGIN_TOP as f32,
-                FONT_SIZE,
+                CONSOLE_FONT_SIZE,
                 DARKGRAY,
             );
             render_mini_map(&game_params.mini_map, &game_params.mini_map_config);
@@ -1053,7 +1055,7 @@ fn handle_game_run(
             //enemies
             if let Ok(enemies_result) = enemies.lock() {
                 if let Some(enemies) = enemies_result.clone() {
-                    draw_enemy_names_and_scores(&enemies);
+                    draw_enemy_names_and_scores(&enemies, font);
                     draw_enemies_on_minimap(&enemies, &game_params);
                 }
             }
@@ -1346,25 +1348,26 @@ fn start_server_listener(
         }
     });
 }
-fn draw_enemy_names_and_scores(enemies: &Vec<Player>) {
-    let mut top_offset = NAME_MARGIN_TOP as f32 + 35.0;
+fn draw_enemy_names_and_scores(_enemies: &Vec<Player>, font: &Font) {
+    let mut top_offset = NAME_MARGIN_TOP as f32 + 25.0;
+    let params = TextParams{
+        font: Some(font),
+        font_size: GAME_FONT_SIZE,
+        font_scale: 1.0,
+        font_scale_aspect: 1.0,
+        rotation: 0.0,
+        color: BLACK
+    };
+
+    let mut enemies = _enemies.clone();
+    enemies.sort_by(|a, b| b.score.cmp(&a.score));
+    let enemies = enemies[0..8].to_vec(); 
+
     for enemy in enemies {
         if let PlayerStatus::Active = enemy.player_status {
-            draw_text(
-                &enemy.name,
-                NAME_MARGIN_LEFT as f32,
-                top_offset,
-                20.0,
-                DARKGRAY,
-            );
-            draw_text(
-                format!("{}", enemy.score).as_str(),
-                SCORE_MARGIN_LEFT as f32,
-                top_offset,
-                20.0,
-                DARKGRAY,
-            );
-            top_offset += 35.0;
+            draw_text_ex(&enemy.name, NAME_MARGIN_LEFT as f32,top_offset, params.clone());
+            draw_text_ex(format!("{}", enemy.score).as_str(), SCORE_MARGIN_LEFT as f32,top_offset, params.clone());
+            top_offset += 25.0;
         }
     }
 }
@@ -1496,6 +1499,69 @@ fn send_message_to_server(
                 "Error while sending message {} to server: {:?}",
                 message_to_server, e
             );
+        }
+    }
+}
+fn draw_enemies_test(font: &Font){
+    let mut p1 =  Player::new();
+    p1.name = "AAA".to_string();
+    p1.score = 2;
+    p1.player_status = PlayerStatus::Active;
+    let mut p2 = Player::new();
+    p2.name = "BBB".to_string();
+    p2.score = 0;
+    p2.player_status = PlayerStatus::Active;
+    let mut p3 =  Player::new();
+    p3.name = "CCC".to_string();
+    p3.score = 1;
+    p3.player_status = PlayerStatus::Active;
+    let mut p4 = Player::new();
+    p4.name = "DDD".to_string();
+    p4.score = 3;
+    p4.player_status = PlayerStatus::Active;
+    let mut p5 =  Player::new();
+    p5.name = "EEE".to_string();
+    p5.score = 0;
+    p5.player_status = PlayerStatus::Active;
+    let mut p6 = Player::new();
+    p6.name = "FFF".to_string();
+    p6.score = 5;
+    p6.player_status = PlayerStatus::Active;
+    let mut p7 =  Player::new();
+    p7.name = "GGG".to_string();
+    p7.score = 3;
+    p7.player_status = PlayerStatus::Active;
+    let mut p8 = Player::new();
+    p8.name = "HHH".to_string();
+    p8.score = 3;
+    p8.player_status = PlayerStatus::Active;
+    let mut p9 = Player::new();
+    p9.name = "III".to_string();
+    p9.score = 8;
+    p9.player_status = PlayerStatus::Active;
+
+    let mut enemies = vec![
+        p1,p2,p3,p4,p5,p6,p7,p8,p9
+    ];
+
+    enemies.sort_by(|a, b| b.score.cmp(&a.score));
+    let enemies =enemies[0..8].to_vec(); 
+
+    let mut top_offset = NAME_MARGIN_TOP as f32 + 25.0;
+    let params = TextParams{
+        font: Some(font),
+        font_size: GAME_FONT_SIZE,
+        font_scale: 1.0,
+        font_scale_aspect: 1.0,
+        rotation: 0.0,
+        color: BLACK
+    };
+
+    for enemy in enemies {
+        if let PlayerStatus::Active = enemy.player_status {
+            draw_text_ex(&enemy.name, NAME_MARGIN_LEFT as f32,top_offset, params.clone());
+            draw_text_ex(format!("{}", enemy.score).as_str(), SCORE_MARGIN_LEFT as f32,top_offset, params.clone());
+            top_offset += 25.0;
         }
     }
 }
