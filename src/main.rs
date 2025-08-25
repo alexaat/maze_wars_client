@@ -933,7 +933,8 @@ fn select_map_handler(
 
         let mut off_set_y = 70.0;
         for (index, path) in map_paths.iter().enumerate() {
-            let text = format!("{:?}", path.display());
+            let mut text = format!("{:?}", path.display());
+            text = text.replace('"', "");
             if index as i32 == *selected_path_index {
                 draw_rectangle(
                     0.0,
