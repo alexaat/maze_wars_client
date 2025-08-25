@@ -103,3 +103,28 @@ pub fn get_ms() -> Option<u128> {
     }
     None
 }
+
+pub fn get_settings(move_speed: &mut f32, look_speed: &mut f32) {
+    let content = read_file("settings");
+    if let Ok(_content) = content {
+        let lines = _content.lines();
+        for line in lines {
+            let parts: Vec<&str> = line.split(":").collect();
+            if parts.len() == 2 {
+                let key = parts[0].trim();
+                let value = parts[1].trim();
+
+                if String::from(key) == String::from("MOVE_SPEED") {
+                    if let Ok(_value) = value.parse::<f32>() {
+                        *move_speed = _value;
+                    }
+                }
+                if String::from(key) == String::from("LOOK_SPEED") {
+                    if let Ok(_value) = value.parse::<f32>() {
+                        *look_speed = _value;
+                    }
+                }
+            }
+        }
+    }
+}

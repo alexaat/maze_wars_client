@@ -15,7 +15,7 @@ use utils::*;
 use std::net::UdpSocket;
 use std::sync::Arc;
 
-use std::{thread,fs};
+use std::{fs, thread};
 
 fn conf() -> Conf {
     Conf {
@@ -29,11 +29,17 @@ fn conf() -> Conf {
 #[macroquad::main(conf)]
 async fn main() {
     //send request from client:  echo -n 'Hello from client' | nc -u 127.0.0.1 4000
+
+    let mut move_speed = MOVE_SPEED;
+    let mut look_speed = LOOK_SPEED;
+
+    get_settings(&mut move_speed, &mut look_speed);
+
     let mut status = Status::EnterIP;
     let mut server_addr = String::new();
     let mut player_name = String::new();
     let mut map_path = String::from(DEFAULT_MAP_PATH);
-    
+
     let mut game_params: Option<GameParams> = None;
     let mut player: Option<Arc<Mutex<Player>>> = None;
 
@@ -41,7 +47,7 @@ async fn main() {
 
     set_cursor_grab(true);
     show_mouse(false);
-    
+
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
     // test
     // let mut enemy = Player::new();
@@ -80,11 +86,23 @@ async fn main() {
         match status {
             Status::EnterIP => handle_ip_input(&mut status, &mut server_addr),
             Status::EnterName => handle_name_input(&mut status, &mut player_name, &server_addr),
-            Status::SelectMap => select_map_handler(&mut status, &mut map_path, &server_addr, &player_name, &mut selexted_map_index),
-            Status::Init => init_game_handler(&mut status, &mut game_params, &mut player, &player_name, &map_path),            
+            Status::SelectMap => select_map_handler(
+                &mut status,
+                &mut map_path,
+                &server_addr,
+                &player_name,
+                &mut selexted_map_index,
+            ),
+            Status::Init => init_game_handler(
+                &mut status,
+                &mut game_params,
+                &mut player,
+                &player_name,
+                &map_path,
+            ),
             Status::StartServerListener => {
-               if let Some(ref mut _game_params) = game_params{
-                    if let Some(ref _player) = player{
+                if let Some(ref mut _game_params) = game_params {
+                    if let Some(ref _player) = player {
                         start_server_listener(
                             Arc::clone(&socket),
                             Arc::clone(&enemies),
@@ -98,32 +116,34 @@ async fn main() {
                         exit(0);
                     }
                 } else {
-                        println!("error while initialisation game parameters");
-                        exit(0);
+                    println!("error while initialisation game parameters");
+                    exit(0);
                 }
-            }            
-            Status::Run =>{
-                if let Some(ref mut _game_params) = game_params{
-                    if let Some(ref _player) = player{
-                    handle_game_run(
-                        &server_addr,
-                        Arc::clone(&_player),
-                        _game_params,
-                        &socket,
-                        Arc::clone(&enemies),
-                        &mut is_first_tun,
-                        fps,
-                        &font
-                    );
+            }
+            Status::Run => {
+                if let Some(ref mut _game_params) = game_params {
+                    if let Some(ref _player) = player {
+                        handle_game_run(
+                            &server_addr,
+                            Arc::clone(&_player),
+                            _game_params,
+                            &socket,
+                            Arc::clone(&enemies),
+                            &mut is_first_tun,
+                            fps,
+                            &font,
+                            move_speed,
+                            look_speed,
+                        );
                     } else {
                         println!("error while initialisation player");
                         exit(0);
                     }
                 } else {
-                        println!("error while initialisation game parameters");
-                        exit(0);
+                    println!("error while initialisation game parameters");
+                    exit(0);
                 }
-            },
+            }
         }
         next_frame().await;
     }
@@ -802,7 +822,13 @@ fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
     let mut server_addr_display =
         "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
     server_addr_display.push_str(server_addr);
-    draw_text(server_addr_display.as_str(), 10.0, 20.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
+    draw_text(
+        server_addr_display.as_str(),
+        10.0,
+        20.0,
+        CONSOLE_FONT_SIZE,
+        LIGHTGRAY,
+    );
 
     if let Some(c) = get_char_pressed() {
         if c == 3 as char || c == 13 as char {
@@ -824,7 +850,7 @@ fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
 }
 fn handle_name_input(status: &mut Status, player_name: &mut String, server_addr: &String) {
     clear_background(BLACK);
-   
+
     let mut server_addr_display =
         "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
     server_addr_display.push_str(server_addr);
@@ -832,8 +858,20 @@ fn handle_name_input(status: &mut Status, player_name: &mut String, server_addr:
     let mut player_name_display = "Enter your name:     ".to_string();
     player_name_display.push_str(&player_name);
 
-    draw_text(server_addr_display.as_str(), 10.0, 20.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
-    draw_text(player_name_display.as_str(), 10.0, 40.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
+    draw_text(
+        server_addr_display.as_str(),
+        10.0,
+        20.0,
+        CONSOLE_FONT_SIZE,
+        LIGHTGRAY,
+    );
+    draw_text(
+        player_name_display.as_str(),
+        10.0,
+        40.0,
+        CONSOLE_FONT_SIZE,
+        LIGHTGRAY,
+    );
 
     if let Some(c) = get_char_pressed() {
         if c == 3 as char || c == 13 as char {
@@ -849,71 +887,100 @@ fn handle_name_input(status: &mut Status, player_name: &mut String, server_addr:
 
     if is_key_pressed(KeyCode::Backspace) {
         player_name.pop();
-    } 
+    }
 
     if is_key_pressed(KeyCode::Escape) {
         exit(0);
     }
-      
-
 }
-fn select_map_handler(status: &mut Status, map_path: &mut String, server_addr: &String, player_name: &String, selected_path_index: &mut i32){
-    
-    if let Ok(paths) = fs::read_dir(MAPS_DIRECTORY_PATH){
-        let mut map_paths = vec![];        
+fn select_map_handler(
+    status: &mut Status,
+    map_path: &mut String,
+    server_addr: &String,
+    player_name: &String,
+    selected_path_index: &mut i32,
+) {
+    if let Ok(paths) = fs::read_dir(MAPS_DIRECTORY_PATH) {
+        let mut map_paths = vec![];
         for path in paths {
-            if let Ok(_path) = path{               
-                map_paths.push(_path.path());               
-            }           
+            if let Ok(_path) = path {
+                map_paths.push(_path.path());
+            }
         }
         if map_paths.len() == 0 {
             *status = Status::Init;
             return;
         }
 
-        draw_text(format!("Enter server IP addrsss. Example: 127.0.0.1:4000    {}", server_addr).as_str(), 10.0, 20.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
-        draw_text(format!("Enter your name:     {}", player_name).as_str(), 10.0, 40.0, CONSOLE_FONT_SIZE, LIGHTGRAY);
-        
+        draw_text(
+            format!(
+                "Enter server IP addrsss. Example: 127.0.0.1:4000    {}",
+                server_addr
+            )
+            .as_str(),
+            10.0,
+            20.0,
+            CONSOLE_FONT_SIZE,
+            LIGHTGRAY,
+        );
+        draw_text(
+            format!("Enter your name:     {}", player_name).as_str(),
+            10.0,
+            40.0,
+            CONSOLE_FONT_SIZE,
+            LIGHTGRAY,
+        );
+
         let mut off_set_y = 70.0;
-        for (index, path) in map_paths.iter().enumerate(){
+        for (index, path) in map_paths.iter().enumerate() {
             let text = format!("{:?}", path.display());
-            if index as i32 == *selected_path_index{
-                draw_rectangle(0.0, off_set_y - 5.0 - 12.0 , screen_width(), CONSOLE_FONT_SIZE + 5.0, LIGHTGRAY);              
+            if index as i32 == *selected_path_index {
+                draw_rectangle(
+                    0.0,
+                    off_set_y - 5.0 - 12.0,
+                    screen_width(),
+                    CONSOLE_FONT_SIZE + 5.0,
+                    LIGHTGRAY,
+                );
                 draw_text(text.as_str(), 10.0, off_set_y, CONSOLE_FONT_SIZE, BLACK);
-            }else {               
+            } else {
                 draw_text(text.as_str(), 10.0, off_set_y, CONSOLE_FONT_SIZE, LIGHTGRAY);
             }
             off_set_y += 30.0;
-        }        
+        }
 
         if is_key_pressed(KeyCode::Down) {
-            *selected_path_index =  i32::min(map_paths.len() as i32 - 1, selected_path_index.clone() + 1);
+            *selected_path_index =
+                i32::min(map_paths.len() as i32 - 1, selected_path_index.clone() + 1);
         }
         if is_key_pressed(KeyCode::Up) {
-            *selected_path_index =  i32::max(0, selected_path_index.clone() - 1);
+            *selected_path_index = i32::max(0, selected_path_index.clone() - 1);
         }
 
         if let Some(c) = get_char_pressed() {
             if c == 3 as char || c == 13 as char {
-                *map_path = format!("{}",map_paths[*selected_path_index as usize].display());
+                *map_path = format!("{}", map_paths[*selected_path_index as usize].display());
                 *status = Status::Init;
-            }            
-        } 
+            }
+        }
         if is_key_pressed(KeyCode::Escape) {
             exit(0);
-        }         
-
+        }
     } else {
         *status = Status::Init;
     }
-   
-
 }
-fn init_game_handler(status: &mut Status, game_params: &mut Option<GameParams>, player: &mut Option<Arc<Mutex<Player>>>, player_name: &String, map_path: &String) {    
+fn init_game_handler(
+    status: &mut Status,
+    game_params: &mut Option<GameParams>,
+    player: &mut Option<Arc<Mutex<Player>>>,
+    player_name: &String,
+    map_path: &String,
+) {
     let params = init_game_params(map_path);
     *game_params = Some(params.clone());
-    let _player = init_player(&params, player_name, map_path);  
-    *player = Some(Arc::new(Mutex::new(_player))); 
+    let _player = init_player(&params, player_name, map_path);
+    *player = Some(Arc::new(Mutex::new(_player)));
     *status = Status::StartServerListener;
 }
 fn handle_game_run(
@@ -924,7 +991,9 @@ fn handle_game_run(
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
     is_first_tun: &mut bool,
     fps: f32,
-    font: &Font
+    font: &Font,
+    move_speed: f32,
+    look_speed: f32,
 ) {
     let mut require_update = false;
     if *is_first_tun {
@@ -946,19 +1015,23 @@ fn handle_game_run(
                 exit(0);
             }
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
-                player.position_vec3 += front * MOVE_SPEED;
+                player.position_vec3 += front * move_speed;
+                //player.position_vec3 += front * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
-                player.position_vec3 -= front * MOVE_SPEED;
+                player.position_vec3 -= front * move_speed;
+                //player.position_vec3 -= front * MOVE_SPEED;
                 require_update = true;
             }
             if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
-                player.position_vec3 -= right * MOVE_SPEED;
+                //player.position_vec3 -= right * MOVE_SPEED;
+                player.position_vec3 -= right * move_speed;
                 require_update = true;
             }
             if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
-                player.position_vec3 += right * MOVE_SPEED;
+                player.position_vec3 += right * move_speed;
+                // player.position_vec3 += right * MOVE_SPEED;
                 require_update = true;
             }
 
@@ -977,8 +1050,10 @@ fn handle_game_run(
             }
             game_params.last_mouse_position = mouse_position;
 
-            player.yaw += mouse_delta.x * delta * LOOK_SPEED;
-            player.pitch += mouse_delta.y * delta * -LOOK_SPEED;
+            player.yaw += mouse_delta.x * delta * look_speed;
+            player.pitch += mouse_delta.y * delta * -look_speed;
+            // player.yaw += mouse_delta.x * delta * LOOK_SPEED;
+            // player.pitch += mouse_delta.y * delta * -LOOK_SPEED;
             player.pitch = if player.pitch > MAX_PITCH {
                 MAX_PITCH
             } else {
@@ -1016,16 +1091,26 @@ fn handle_game_run(
                 DARKGRAY,
             );
 
-            let params = TextParams{
+            let params = TextParams {
                 font: Some(font),
                 font_size: GAME_FONT_SIZE,
                 font_scale: 1.0,
                 font_scale_aspect: 1.0,
                 rotation: 0.0,
-                color: BLACK
+                color: BLACK,
             };
-            draw_text_ex(&player.name, NAME_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, params.clone());
-            draw_text_ex(format!("{}", player.score).as_str(), SCORE_MARGIN_LEFT as f32, NAME_MARGIN_TOP as f32, params);
+            draw_text_ex(
+                &player.name,
+                NAME_MARGIN_LEFT as f32,
+                NAME_MARGIN_TOP as f32,
+                params.clone(),
+            );
+            draw_text_ex(
+                format!("{}", player.score).as_str(),
+                SCORE_MARGIN_LEFT as f32,
+                NAME_MARGIN_TOP as f32,
+                params,
+            );
 
             draw_text(
                 format!("FPS: {:.1$}", fps, 2).as_str(),
@@ -1350,23 +1435,33 @@ fn start_server_listener(
 }
 fn draw_enemy_names_and_scores(_enemies: &Vec<Player>, font: &Font) {
     let mut top_offset = NAME_MARGIN_TOP as f32 + 25.0;
-    let params = TextParams{
+    let params = TextParams {
         font: Some(font),
         font_size: GAME_FONT_SIZE,
         font_scale: 1.0,
         font_scale_aspect: 1.0,
         rotation: 0.0,
-        color: BLACK
+        color: BLACK,
     };
 
     let mut enemies = _enemies.clone();
     enemies.sort_by(|a, b| b.score.cmp(&a.score));
-    let enemies = enemies[0..8].to_vec(); 
+    let enemies = enemies[0..8].to_vec();
 
     for enemy in enemies {
         if let PlayerStatus::Active = enemy.player_status {
-            draw_text_ex(&enemy.name, NAME_MARGIN_LEFT as f32,top_offset, params.clone());
-            draw_text_ex(format!("{}", enemy.score).as_str(), SCORE_MARGIN_LEFT as f32,top_offset, params.clone());
+            draw_text_ex(
+                &enemy.name,
+                NAME_MARGIN_LEFT as f32,
+                top_offset,
+                params.clone(),
+            );
+            draw_text_ex(
+                format!("{}", enemy.score).as_str(),
+                SCORE_MARGIN_LEFT as f32,
+                top_offset,
+                params.clone(),
+            );
             top_offset += 25.0;
         }
     }
@@ -1502,8 +1597,8 @@ fn send_message_to_server(
         }
     }
 }
-fn draw_enemies_test(font: &Font){
-    let mut p1 =  Player::new();
+fn draw_enemies_test(font: &Font) {
+    let mut p1 = Player::new();
     p1.name = "AAA".to_string();
     p1.score = 2;
     p1.player_status = PlayerStatus::Active;
@@ -1511,7 +1606,7 @@ fn draw_enemies_test(font: &Font){
     p2.name = "BBB".to_string();
     p2.score = 0;
     p2.player_status = PlayerStatus::Active;
-    let mut p3 =  Player::new();
+    let mut p3 = Player::new();
     p3.name = "CCC".to_string();
     p3.score = 1;
     p3.player_status = PlayerStatus::Active;
@@ -1519,7 +1614,7 @@ fn draw_enemies_test(font: &Font){
     p4.name = "DDD".to_string();
     p4.score = 3;
     p4.player_status = PlayerStatus::Active;
-    let mut p5 =  Player::new();
+    let mut p5 = Player::new();
     p5.name = "EEE".to_string();
     p5.score = 0;
     p5.player_status = PlayerStatus::Active;
@@ -1527,7 +1622,7 @@ fn draw_enemies_test(font: &Font){
     p6.name = "FFF".to_string();
     p6.score = 5;
     p6.player_status = PlayerStatus::Active;
-    let mut p7 =  Player::new();
+    let mut p7 = Player::new();
     p7.name = "GGG".to_string();
     p7.score = 3;
     p7.player_status = PlayerStatus::Active;
@@ -1540,27 +1635,35 @@ fn draw_enemies_test(font: &Font){
     p9.score = 8;
     p9.player_status = PlayerStatus::Active;
 
-    let mut enemies = vec![
-        p1,p2,p3,p4,p5,p6,p7,p8,p9
-    ];
+    let mut enemies = vec![p1, p2, p3, p4, p5, p6, p7, p8, p9];
 
     enemies.sort_by(|a, b| b.score.cmp(&a.score));
-    let enemies =enemies[0..8].to_vec(); 
+    let enemies = enemies[0..8].to_vec();
 
     let mut top_offset = NAME_MARGIN_TOP as f32 + 25.0;
-    let params = TextParams{
+    let params = TextParams {
         font: Some(font),
         font_size: GAME_FONT_SIZE,
         font_scale: 1.0,
         font_scale_aspect: 1.0,
         rotation: 0.0,
-        color: BLACK
+        color: BLACK,
     };
 
     for enemy in enemies {
         if let PlayerStatus::Active = enemy.player_status {
-            draw_text_ex(&enemy.name, NAME_MARGIN_LEFT as f32,top_offset, params.clone());
-            draw_text_ex(format!("{}", enemy.score).as_str(), SCORE_MARGIN_LEFT as f32,top_offset, params.clone());
+            draw_text_ex(
+                &enemy.name,
+                NAME_MARGIN_LEFT as f32,
+                top_offset,
+                params.clone(),
+            );
+            draw_text_ex(
+                format!("{}", enemy.score).as_str(),
+                SCORE_MARGIN_LEFT as f32,
+                top_offset,
+                params.clone(),
+            );
             top_offset += 25.0;
         }
     }
