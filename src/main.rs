@@ -1455,8 +1455,10 @@ fn draw_enemy_names_and_scores(_enemies: &Vec<Player>, font: &Font) {
 
     let mut enemies = _enemies.clone();
     enemies.sort_by(|a, b| b.score.cmp(&a.score));
-    let enemies = enemies[0..8].to_vec();
-
+    if enemies.len() > 8 {
+        enemies =  enemies[0..8].to_vec();
+    }
+    
     for enemy in enemies {
         if let PlayerStatus::Active = enemy.player_status {
             draw_text_ex(
