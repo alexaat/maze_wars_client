@@ -178,7 +178,6 @@ fn init_player(game_params: &GameParams, player_name: &String, map_path: &String
 }
 fn init_game_params(map_path: &String) -> GameParams {
     let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/bricks.png"), None);
-    let sky_texture = Texture2D::from_file_with_format(include_bytes!("../assets/sky.png"), None);
     let arrow_texture =
         Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
     let eye_texture =
@@ -218,7 +217,6 @@ fn init_game_params(map_path: &String) -> GameParams {
 
     GameParams {
         wall_texture,
-        sky_texture,
         arrow_texture,
         eye_texture,
         floor_texture,
@@ -1458,7 +1456,7 @@ fn draw_enemy_names_and_scores(_enemies: &Vec<Player>, font: &Font) {
     if enemies.len() > 8 {
         enemies =  enemies[0..8].to_vec();
     }
-    
+
     for enemy in enemies {
         if let PlayerStatus::Active = enemy.player_status {
             draw_text_ex(
@@ -1508,7 +1506,6 @@ fn remove_shots(shots: &mut Vec<Shot>) {
 fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool>>) {
     match hittables_ref.lock() {
         Ok(mut hittables) => {
-            ////////////////
 
             for (z, row) in mini_map.iter().enumerate() {
                 for (x, cell) in row.iter().enumerate() {
@@ -1552,43 +1549,9 @@ fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool
                     }
                 }
             }
-
-            /////////////////
         }
         Err(e) => println!("Error while locking hittables {:?}", e),
     }
-
-    //cell down from (1, 2)
-    // let shield = Shield::new(
-    //     vec3(1.5, 0.5, 1.5),
-    //     vec3(1.0, 0.0, 0.0),
-    //     vec3(0.0, 1.0, 0.0),
-    // );
-    // hittables.push(Hittable::Wall(shield));
-
-    // //cell up from (1,1)
-    // let shield = Shield::new(
-    //     vec3(0.5, 0.5, 0.5),
-    //     vec3(1.0, 0.0, 0.0),
-    //     vec3(0.0, 1.0, 0.0),
-    // );
-    // hittables.push(Hittable::Wall(shield));
-
-    // //cell up from (1,2)
-    // let shield = Shield::new(
-    //     vec3(1.5, 0.5, 0.5),
-    //     vec3(1.0, 0.0, 0.0),
-    //     vec3(0.0, 1.0, 0.0),
-    // );
-    // hittables.push(Hittable::Wall(shield));
-
-    //9, 0, 1
-    // let shield = Shield::new(
-    //     vec3(9.5, 0.5, 0.5),
-    //     vec3(0.0, 0.0, 1.0),
-    //     vec3(0.0, 1.0, 0.0),
-    // );
-    // hittables.push(Hittable::Wall(shield));
 }
 fn send_message_to_server(
     socket: &Arc<UdpSocket>,
@@ -1598,84 +1561,11 @@ fn send_message_to_server(
 ) {
     let server_object = ServerMessage { sender_id, player };
     if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-        //println!("message to server: {:?}", message_to_server);
-        //println!();
         if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
             println!(
                 "Error while sending message {} to server: {:?}",
                 message_to_server, e
             );
-        }
-    }
-}
-fn draw_enemies_test(font: &Font) {
-    let mut p1 = Player::new();
-    p1.name = "AAA".to_string();
-    p1.score = 2;
-    p1.player_status = PlayerStatus::Active;
-    let mut p2 = Player::new();
-    p2.name = "BBB".to_string();
-    p2.score = 0;
-    p2.player_status = PlayerStatus::Active;
-    let mut p3 = Player::new();
-    p3.name = "CCC".to_string();
-    p3.score = 1;
-    p3.player_status = PlayerStatus::Active;
-    let mut p4 = Player::new();
-    p4.name = "DDD".to_string();
-    p4.score = 3;
-    p4.player_status = PlayerStatus::Active;
-    let mut p5 = Player::new();
-    p5.name = "EEE".to_string();
-    p5.score = 0;
-    p5.player_status = PlayerStatus::Active;
-    let mut p6 = Player::new();
-    p6.name = "FFF".to_string();
-    p6.score = 5;
-    p6.player_status = PlayerStatus::Active;
-    let mut p7 = Player::new();
-    p7.name = "GGG".to_string();
-    p7.score = 3;
-    p7.player_status = PlayerStatus::Active;
-    let mut p8 = Player::new();
-    p8.name = "HHH".to_string();
-    p8.score = 3;
-    p8.player_status = PlayerStatus::Active;
-    let mut p9 = Player::new();
-    p9.name = "III".to_string();
-    p9.score = 8;
-    p9.player_status = PlayerStatus::Active;
-
-    let mut enemies = vec![p1, p2, p3, p4, p5, p6, p7, p8, p9];
-
-    enemies.sort_by(|a, b| b.score.cmp(&a.score));
-    let enemies = enemies[0..8].to_vec();
-
-    let mut top_offset = NAME_MARGIN_TOP as f32 + 25.0;
-    let params = TextParams {
-        font: Some(font),
-        font_size: GAME_FONT_SIZE,
-        font_scale: 1.0,
-        font_scale_aspect: 1.0,
-        rotation: 0.0,
-        color: BLACK,
-    };
-
-    for enemy in enemies {
-        if let PlayerStatus::Active = enemy.player_status {
-            draw_text_ex(
-                &enemy.name,
-                NAME_MARGIN_LEFT as f32,
-                top_offset,
-                params.clone(),
-            );
-            draw_text_ex(
-                format!("{}", enemy.score).as_str(),
-                SCORE_MARGIN_LEFT as f32,
-                top_offset,
-                params.clone(),
-            );
-            top_offset += 25.0;
         }
     }
 }

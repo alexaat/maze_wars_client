@@ -163,7 +163,6 @@ impl MiniMapConfig {
 #[derive(Clone)]
 pub struct GameParams {
     pub wall_texture: Texture2D,
-    pub sky_texture: Texture2D,
     pub arrow_texture: Texture2D,
     pub eye_texture: Image,
     pub floor_texture: Texture2D,
