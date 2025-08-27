@@ -904,7 +904,12 @@ fn select_map_handler(
         let mut map_paths = vec![];
         for path in paths {
             if let Ok(_path) = path {
-                map_paths.push(_path.path());
+                let path_as_str = format!("{:?}",_path.path().display());
+                if let Some(ch) =  path_as_str.chars().nth(0){
+                    if ch != '.'{
+                       map_paths.push(_path.path());
+                    }
+                }             
             }
         }
         if map_paths.len() == 0 {
@@ -934,7 +939,7 @@ fn select_map_handler(
         let mut off_set_y = 70.0;
         for (index, path) in map_paths.iter().enumerate() {
             let mut text = format!("{:?}", path.display());
-            text = text.replace('"', "");
+            text = text.replace('"', "");            
             if index as i32 == *selected_path_index {
                 draw_rectangle(
                     0.0,
@@ -1149,18 +1154,11 @@ fn handle_game_run(
             });
 
             clear_background(LIGHTGRAY);
-            //draw_grid(50, 1., BLACK, GRAY);
             draw_walls(
                 &game_params.mini_map,
                 Some(&game_params.wall_texture),
                 WHITE,
             );
-            //sky
-            // for z in 0..game_params.mini_map.len(){
-            //     for x in 0..game_params.mini_map[0].len(){
-            //         draw_plane(vec3(x as f32, 1.5, z as f32), vec2(1.0,1.0), Some(&game_params.sky_texture), WHITE);
-            //     }
-            // }
             let center = vec3(0.0, 1.5, 0.0);
             let size = vec2(game_params.mini_map[0].len() as f32, game_params.mini_map.len() as f32);
             draw_plane(center, size, None, Color{r: 0.3, g: 0.79, b: 0.99, a: 0.7});
@@ -1171,11 +1169,6 @@ fn handle_game_run(
                     draw_plane(vec3(x as f32, 0.5, z as f32), vec2(1.0,1.0), Some(&game_params.floor_texture), WHITE);
                 }
             }
-
-            //let center = vec3(-50.0, -0.1, -50.0);
-            //let size = vec2(100.0, 100.0);
-            //draw_plane(center, size, Some(&game_params.floor_texture), WHITE);
-
             //draw enemies in 3D window
             if let Ok(enemies_result) = enemies.lock() {
                 if let Some(enemies) = enemies_result.clone() {
