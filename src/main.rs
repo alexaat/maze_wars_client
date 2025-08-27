@@ -904,12 +904,10 @@ fn select_map_handler(
         let mut map_paths = vec![];
         for path in paths {
             if let Ok(_path) = path {
-                let path_as_str = format!("{:?}",_path.path().display());
-                if let Some(ch) =  path_as_str.chars().nth(0){
-                    if ch != '.'{
-                       map_paths.push(_path.path());
-                    }
-                }             
+                let path_as_str = format!("{:?}",_path.path().display());              
+                if !path_as_str.contains("/."){
+                     map_paths.push(_path.path());
+                }           
             }
         }
         if map_paths.len() == 0 {
