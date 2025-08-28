@@ -45,17 +45,12 @@ async fn main() {
 
     let font = load_ttf_font("fonts/AltoMono.ttf").await.unwrap();
 
-    set_cursor_grab(true);
-    show_mouse(false);
+
+    let mut grabbed = true;
+    set_cursor_grab(grabbed);
+    show_mouse(!grabbed);
 
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
-    // test
-    // let mut enemy = Player::new();
-    // enemy.name = "Sam".to_string();
-    // enemy.position = Position::build(7.0, 1.0);
-    // let enem = Some(vec![enemy]);
-    // enemies = Arc::new(Mutex::new(enem));
-    //end test
 
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
 
@@ -134,6 +129,7 @@ async fn main() {
                             &font,
                             move_speed,
                             look_speed,
+                            &mut grabbed
                         );
                     } else {
                         println!("error while initialisation player");
@@ -998,6 +994,7 @@ fn handle_game_run(
     font: &Font,
     move_speed: f32,
     look_speed: f32,
+    grabbed: &mut bool
 ) {
     let mut require_update = false;
     if *is_first_tun {
@@ -1018,6 +1015,13 @@ fn handle_game_run(
                 send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
                 exit(0);
             }
+
+            if is_key_pressed(KeyCode::Tab) {
+                *grabbed = !*grabbed;
+                set_cursor_grab(*grabbed);
+                show_mouse(!*grabbed);
+            }   
+
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
                 player.position_vec3 += front * move_speed;
                 require_update = true;
