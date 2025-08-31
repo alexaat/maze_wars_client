@@ -45,7 +45,6 @@ async fn main() {
 
     let font = load_ttf_font("fonts/AltoMono.ttf").await.unwrap();
 
-
     let mut grabbed = true;
     set_cursor_grab(grabbed);
     show_mouse(!grabbed);
@@ -129,7 +128,7 @@ async fn main() {
                             &font,
                             move_speed,
                             look_speed,
-                            &mut grabbed
+                            &mut grabbed,
                         );
                     } else {
                         println!("error while initialisation player");
@@ -173,12 +172,14 @@ fn init_player(game_params: &GameParams, player_name: &String, map_path: &String
     player
 }
 fn init_game_params(map_path: &String) -> GameParams {
-    let wall_texture = Texture2D::from_file_with_format(include_bytes!("../assets/bricks.png"), None);
+    let wall_texture =
+        Texture2D::from_file_with_format(include_bytes!("../assets/bricks.png"), None);
     let arrow_texture =
         Texture2D::from_file_with_format(include_bytes!("../assets/small_arrow.png"), None);
     let eye_texture =
         Image::from_file_with_format(include_bytes!("../assets/eye_texture.png"), None).unwrap();
-    let floor_texture = Texture2D::from_file_with_format(include_bytes!("../assets/patio448.png"), None);
+    let floor_texture =
+        Texture2D::from_file_with_format(include_bytes!("../assets/patio448.png"), None);
 
     let mini_map = match parse_map(map_path) {
         Ok(map) => map,
@@ -187,6 +188,12 @@ fn init_game_params(map_path: &String) -> GameParams {
             exit(1);
         }
     };
+
+    let mini_map_height_as_usize = mini_map.len();
+    let mini_map_length_as_usize = mini_map[0].len();
+    let mini_map_height_as_f32 = mini_map_height_as_usize as f32;
+    let mini_map_length_as_f32 = mini_map_length_as_usize as f32;
+
     let mini_map_config = MiniMapConfig::new(
         &mini_map,
         MAP_WIDTH,
@@ -196,8 +203,8 @@ fn init_game_params(map_path: &String) -> GameParams {
         BLACK,
     );
     let render_target = render_target_ex(
-        MAIN_WIDTH,
-        MAIN_HEIGHT,
+        MAIN_WIDTH as u32,
+        MAIN_HEIGHT as u32,
         RenderTargetParams {
             sample_count: 1,
             depth: true,
@@ -220,6 +227,10 @@ fn init_game_params(map_path: &String) -> GameParams {
         render_target,
         last_mouse_position,
         mini_map,
+        mini_map_height_as_usize,
+        mini_map_length_as_usize,
+        mini_map_height_as_f32,
+        mini_map_length_as_f32,
         world_up,
         shots,
         hittables,
@@ -281,25 +292,25 @@ fn draw_player_on_mini_map(
     //current position
     let index_x = f32::floor(player.position.x + 0.5);
     let index_z = f32::floor(player.position.z + 0.5);
+    let index_x_usize = index_x as usize;
+    let index_z_usize = index_z as usize;
 
-    let mut x = config.horizontal_offset as f32 + player.position.x * config.cell_width;
-    let mut z = config.vertical_offset as f32 + player.position.z * config.cell_height;
+    let mut x = config.horizontal_offset + player.position.x * config.cell_width;
+    let mut z = config.vertical_offset + player.position.z * config.cell_height;
 
     //horizontal tunnel + horizontal pockets
-    if mini_map[index_z as usize + 1][index_x as usize]
-        && mini_map[index_z as usize - 1][index_x as usize]
-    {
-        z = config.vertical_offset as f32 + index_z * config.cell_height;
+    if mini_map[index_z_usize + 1][index_x_usize] && mini_map[index_z_usize - 1][index_x_usize] {
+        z = config.vertical_offset + index_z * config.cell_height;
         //pocket on the right
-        if mini_map[index_z as usize][index_x as usize + 1] {
-            let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        if mini_map[index_z_usize][index_x_usize + 1] {
+            let max_x = config.horizontal_offset + index_x * config.cell_width;
             if x > max_x {
                 x = max_x
             }
         }
         //pocket on the left
-        if mini_map[index_z as usize][index_x as usize - 1] {
-            let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        if mini_map[index_z_usize][index_x_usize - 1] {
+            let min_x = config.horizontal_offset + index_x * config.cell_width;
             if x < min_x {
                 x = min_x
             }
@@ -307,20 +318,18 @@ fn draw_player_on_mini_map(
     }
 
     //vertical tunnel + vertical pocket
-    if mini_map[index_z as usize][index_x as usize + 1]
-        && mini_map[index_z as usize][index_x as usize - 1]
-    {
-        x = config.horizontal_offset as f32 + index_x * config.cell_width;
+    if mini_map[index_z_usize][index_x_usize + 1] && mini_map[index_z_usize][index_x_usize - 1] {
+        x = config.horizontal_offset + index_x * config.cell_width;
         //pocket up
-        if mini_map[index_z as usize - 1][index_x as usize] {
-            let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if mini_map[index_z_usize - 1][index_x_usize] {
+            let min_z = config.vertical_offset + index_z * config.cell_height;
             if z < min_z {
                 z = min_z;
             }
         }
         //pocket down
-        if mini_map[index_z as usize + 1][index_x as usize] {
-            let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        if mini_map[index_z_usize + 1][index_x_usize] {
+            let max_z = config.vertical_offset + index_z * config.cell_height;
             if z > max_z {
                 z = max_z;
             }
@@ -335,13 +344,13 @@ fn draw_player_on_mini_map(
      |
 
     */
-    if mini_map[index_z as usize][index_x as usize - 1]
-        && mini_map[index_z as usize - 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize + 1]
-        && !mini_map[index_z as usize + 1][index_x as usize]
+    if mini_map[index_z_usize][index_x_usize - 1]
+        && mini_map[index_z_usize - 1][index_x_usize]
+        && !mini_map[index_z_usize][index_x_usize + 1]
+        && !mini_map[index_z_usize + 1][index_x_usize]
     {
-        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
-        let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let min_z = config.vertical_offset + index_z * config.cell_height;
+        let min_x = config.horizontal_offset + index_x * config.cell_width;
         if x < min_x {
             x = min_x;
         }
@@ -358,13 +367,13 @@ fn draw_player_on_mini_map(
 
     */
 
-    if mini_map[index_z as usize - 1][index_x as usize]
-        && mini_map[index_z as usize][index_x as usize + 1]
-        && !mini_map[index_z as usize][index_x as usize - 1]
-        && !mini_map[index_z as usize + 1][index_x as usize]
+    if mini_map[index_z_usize - 1][index_x_usize]
+        && mini_map[index_z_usize][index_x_usize + 1]
+        && !mini_map[index_z_usize][index_x_usize - 1]
+        && !mini_map[index_z_usize + 1][index_x_usize]
     {
-        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
-        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        let max_x = config.horizontal_offset + index_x * config.cell_width;
+        let min_z = config.vertical_offset + index_z * config.cell_height;
         if x > max_x {
             x = max_x;
         }
@@ -381,13 +390,13 @@ fn draw_player_on_mini_map(
         ----
 
     */
-    if mini_map[index_z as usize][index_x as usize + 1]
-        && mini_map[index_z as usize + 1][index_x as usize]
-        && !mini_map[index_z as usize - 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize - 1]
+    if mini_map[index_z_usize][index_x_usize + 1]
+        && mini_map[index_z_usize + 1][index_x_usize]
+        && !mini_map[index_z_usize - 1][index_x_usize]
+        && !mini_map[index_z_usize][index_x_usize - 1]
     {
-        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
-        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        let max_x = config.horizontal_offset + index_x * config.cell_width;
+        let max_z = config.vertical_offset + index_z * config.cell_height;
         if x > max_x {
             x = max_x
         }
@@ -405,13 +414,13 @@ fn draw_player_on_mini_map(
 
     */
 
-    if mini_map[index_z as usize][index_x as usize - 1]
-        && mini_map[index_z as usize + 1][index_x as usize]
-        && !mini_map[index_z as usize - 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize + 1]
+    if mini_map[index_z_usize][index_x_usize - 1]
+        && mini_map[index_z_usize + 1][index_x_usize]
+        && !mini_map[index_z_usize - 1][index_x_usize]
+        && !mini_map[index_z_usize][index_x_usize + 1]
     {
-        let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
-        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        let min_x = config.horizontal_offset + index_x * config.cell_width;
+        let max_z = config.vertical_offset + index_z * config.cell_height;
         if x < min_x {
             x = min_x
         }
@@ -429,12 +438,12 @@ fn draw_player_on_mini_map(
        |  |
 
     */
-    if mini_map[index_z as usize - 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize - 1]
-        && !mini_map[index_z as usize][index_x as usize + 1]
-        && !mini_map[index_z as usize + 1][index_x as usize]
+    if mini_map[index_z_usize - 1][index_x_usize]
+        && !mini_map[index_z_usize][index_x_usize - 1]
+        && !mini_map[index_z_usize][index_x_usize + 1]
+        && !mini_map[index_z_usize + 1][index_x_usize]
     {
-        let min_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        let min_z = config.vertical_offset + index_z * config.cell_height;
         if z < min_z {
             z = min_z;
         }
@@ -448,12 +457,12 @@ fn draw_player_on_mini_map(
     |  |
 
     */
-    if mini_map[index_z as usize][index_x as usize - 1]
-        && !mini_map[index_z as usize + 1][index_x as usize]
-        && !mini_map[index_z as usize - 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize + 1]
+    if mini_map[index_z_usize][index_x_usize - 1]
+        && !mini_map[index_z_usize + 1][index_x_usize]
+        && !mini_map[index_z_usize - 1][index_x_usize]
+        && !mini_map[index_z_usize][index_x_usize + 1]
     {
-        let min_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let min_x = config.horizontal_offset + index_x * config.cell_width;
         if x < min_x {
             x = min_x;
         }
@@ -467,12 +476,12 @@ fn draw_player_on_mini_map(
              |  |
 
     */
-    if mini_map[index_z as usize][index_x as usize + 1]
-        && !mini_map[index_z as usize - 1][index_x as usize]
-        && !mini_map[index_z as usize + 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize - 1]
+    if mini_map[index_z_usize][index_x_usize + 1]
+        && !mini_map[index_z_usize - 1][index_x_usize]
+        && !mini_map[index_z_usize + 1][index_x_usize]
+        && !mini_map[index_z_usize][index_x_usize - 1]
     {
-        let max_x = config.horizontal_offset as f32 + index_x * config.cell_width;
+        let max_x = config.horizontal_offset + index_x * config.cell_width;
         if x > max_x {
             x = max_x;
         }
@@ -487,23 +496,16 @@ fn draw_player_on_mini_map(
 
     */
 
-    if mini_map[index_z as usize + 1][index_x as usize]
-        && !mini_map[index_z as usize][index_x as usize - 1]
-        && !mini_map[index_z as usize][index_x as usize + 1]
-        && !mini_map[index_z as usize - 1][index_x as usize]
+    if mini_map[index_z_usize + 1][index_x_usize]
+        && !mini_map[index_z_usize][index_x_usize - 1]
+        && !mini_map[index_z_usize][index_x_usize + 1]
+        && !mini_map[index_z_usize - 1][index_x_usize]
     {
-        let max_z = config.vertical_offset as f32 + index_z * config.cell_height;
+        let max_z = config.vertical_offset + index_z * config.cell_height;
         if z > max_z {
             z = max_z;
         }
     }
-
-    /*
-        right pocket
-        ___
-          ↗|
-        ---
-    */
 
     let size = vec2(image_size, image_size);
     draw_texture_ex(
@@ -521,6 +523,7 @@ fn draw_player_on_mini_map(
         },
     );
 }
+/*
 fn draw_enemy_on_minimap(
     player: &Player,
     mini_map: &Vec<Vec<bool>>,
@@ -762,6 +765,8 @@ fn draw_enemy_on_minimap(
         color,
     );
 }
+*/
+
 fn draw_walls(mini_map: &Vec<Vec<bool>>, texture: Option<&Texture2D>, color: Color) {
     for (z, line) in mini_map.into_iter().enumerate() {
         for (x, cell) in line.iter().enumerate() {
@@ -816,7 +821,7 @@ fn handle_wall_collisions(
 fn handle_ip_input(status: &mut Status, server_addr: &mut String) {
     clear_background(BLACK);
     let mut server_addr_display =
-        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+        "Enter server IP address. Example: 127.0.0.1:4000    ".to_string();
     server_addr_display.push_str(server_addr);
     draw_text(
         server_addr_display.as_str(),
@@ -848,7 +853,7 @@ fn handle_name_input(status: &mut Status, player_name: &mut String, server_addr:
     clear_background(BLACK);
 
     let mut server_addr_display =
-        "Enter server IP addrsss. Example: 127.0.0.1:4000    ".to_string();
+        "Enter server IP address. Example: 127.0.0.1:4000    ".to_string();
     server_addr_display.push_str(server_addr);
 
     let mut player_name_display = "Enter your name:     ".to_string();
@@ -900,10 +905,10 @@ fn select_map_handler(
         let mut map_paths = vec![];
         for path in paths {
             if let Ok(_path) = path {
-                let path_as_str = format!("{:?}",_path.path().display());              
-                if !path_as_str.contains("/."){
-                     map_paths.push(_path.path());
-                }           
+                let path_as_str = format!("{:?}", _path.path().display());
+                if !path_as_str.contains("/.") {
+                    map_paths.push(_path.path());
+                }
             }
         }
         if map_paths.len() == 0 {
@@ -913,7 +918,7 @@ fn select_map_handler(
 
         draw_text(
             format!(
-                "Enter server IP addrsss. Example: 127.0.0.1:4000    {}",
+                "Enter server IP address. Example: 127.0.0.1:4000    {}",
                 server_addr
             )
             .as_str(),
@@ -933,7 +938,7 @@ fn select_map_handler(
         let mut off_set_y = 70.0;
         for (index, path) in map_paths.iter().enumerate() {
             let mut text = format!("{:?}", path.display());
-            text = text.replace('"', "");            
+            text = text.replace('"', "");
             if index as i32 == *selected_path_index {
                 draw_rectangle(
                     0.0,
@@ -994,7 +999,7 @@ fn handle_game_run(
     font: &Font,
     move_speed: f32,
     look_speed: f32,
-    grabbed: &mut bool
+    grabbed: &mut bool,
 ) {
     let mut require_update = false;
     if *is_first_tun {
@@ -1007,8 +1012,8 @@ fn handle_game_run(
     match player_ref.lock() {
         Ok(mut player) => {
             let prev_pos = player.position_vec3.clone();
-            let front = player.clone().front;
-            let right = player.clone().right;
+            let front = player.front;
+            let right = player.right;
 
             if is_key_pressed(KeyCode::Escape) {
                 player.player_status = PlayerStatus::Disconnent;
@@ -1020,7 +1025,7 @@ fn handle_game_run(
                 *grabbed = !*grabbed;
                 set_cursor_grab(*grabbed);
                 show_mouse(!*grabbed);
-            }   
+            }
 
             if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
                 player.position_vec3 += front * move_speed;
@@ -1048,8 +1053,8 @@ fn handle_game_run(
             );
             let mouse_position: Vec2 = mouse_position().into();
             let mouse_delta = mouse_position - game_params.last_mouse_position;
-            let mouse_delta_length = mouse_delta.length();
-            if mouse_delta_length > 0.0 {
+            //let mouse_delta_length = mouse_delta.length();
+            if mouse_delta.length() > 0.0 {
                 require_update = true;
             }
             game_params.last_mouse_position = mouse_position;
@@ -1085,10 +1090,10 @@ fn handle_game_run(
             player.orientation =
                 orientaion_to_degrees(vec3(orientation.x, orientation.y, orientation.z));
             draw_rectangle_lines(
-                MAP_MARGIN_LEFT as f32,
-                MAP_MARGIN_TOP as f32,
-                MAP_WIDTH as f32,
-                MAP_HEIGHT as f32,
+                MAP_MARGIN_LEFT,
+                MAP_MARGIN_TOP,
+                MAP_WIDTH,
+                MAP_HEIGHT,
                 2.0,
                 DARKGRAY,
             );
@@ -1103,21 +1108,21 @@ fn handle_game_run(
             };
             draw_text_ex(
                 &player.name,
-                NAME_MARGIN_LEFT as f32,
-                NAME_MARGIN_TOP as f32,
+                NAME_MARGIN_LEFT,
+                NAME_MARGIN_TOP,
                 params.clone(),
             );
             draw_text_ex(
                 format!("{}", player.score).as_str(),
-                SCORE_MARGIN_LEFT as f32,
-                NAME_MARGIN_TOP as f32,
+                SCORE_MARGIN_LEFT,
+                NAME_MARGIN_TOP,
                 params,
             );
 
             draw_text(
                 format!("FPS: {:.1$}", fps, 2).as_str(),
-                FPS_MARGIN_LEFT as f32,
-                FPS_MARGIN_TOP as f32,
+                FPS_MARGIN_LEFT,
+                FPS_MARGIN_TOP,
                 CONSOLE_FONT_SIZE,
                 DARKGRAY,
             );
@@ -1130,11 +1135,11 @@ fn handle_game_run(
             );
             draw_texture_ex(
                 &game_params.render_target.texture,
-                MAIN_MARGIN_LEFT as f32,
-                (MAIN_MARGIN_TOP + MAIN_HEIGHT) as f32,
+                MAIN_MARGIN_LEFT,
+                MAIN_MARGIN_TOP + MAIN_HEIGHT,
                 WHITE,
                 DrawTextureParams {
-                    dest_size: Some(Vec2::new(MAIN_WIDTH as f32, -1.0 * MAIN_HEIGHT as f32)),
+                    dest_size: Some(Vec2::new(MAIN_WIDTH, -MAIN_HEIGHT)),
                     ..Default::default()
                 },
             );
@@ -1143,7 +1148,7 @@ fn handle_game_run(
             if let Ok(enemies_result) = enemies.lock() {
                 if let Some(enemies) = enemies_result.clone() {
                     draw_enemy_names_and_scores(&enemies, font);
-                    draw_enemies_on_minimap(&enemies, &game_params);
+                    //draw_enemies_on_minimap(&enemies, &game_params);
                 }
             }
 
@@ -1161,16 +1166,51 @@ fn handle_game_run(
                 Some(&game_params.wall_texture),
                 WHITE,
             );
+            //sky
             let center = vec3(0.0, 1.5, 0.0);
-            let size = vec2(game_params.mini_map[0].len() as f32, game_params.mini_map.len() as f32);
-            draw_plane(center, size, None, Color{r: 0.3, g: 0.79, b: 0.99, a: 0.7});
-            
+            // let size = vec2(
+            //     game_params.mini_map[0].len() as f32,
+            //     game_params.mini_map.len() as f32,
+            // );
+            let size = vec2(
+                game_params.mini_map_length_as_f32,
+                game_params.mini_map_height_as_f32,
+            );
+
+            draw_plane(
+                center,
+                size,
+                None,
+                Color {
+                    r: 0.3,
+                    g: 0.79,
+                    b: 0.99,
+                    a: 0.7,
+                },
+            );
+
             //ground
-            for z in 0..game_params.mini_map.len(){
-                for x in 0..game_params.mini_map[0].len(){
-                    draw_plane(vec3(x as f32, 0.5, z as f32), vec2(1.0,1.0), Some(&game_params.floor_texture), WHITE);
+            for z in 0..game_params.mini_map_height_as_usize {
+                for x in 0..game_params.mini_map_length_as_usize {
+                    draw_plane(
+                        vec3(x as f32, 0.5, z as f32),
+                        vec2(1.0, 1.0),
+                        Some(&game_params.floor_texture),
+                        WHITE,
+                    );
                 }
             }
+            // //ground
+            // for z in 0..game_params.mini_map.len() {
+            //     for x in 0..game_params.mini_map[0].len() {
+            //         draw_plane(
+            //             vec3(x as f32, 0.5, z as f32),
+            //             vec2(1.0, 1.0),
+            //             Some(&game_params.floor_texture),
+            //             WHITE,
+            //         );
+            //     }
+            // }
             //draw enemies in 3D window
             if let Ok(enemies_result) = enemies.lock() {
                 if let Some(enemies) = enemies_result.clone() {
@@ -1409,7 +1449,6 @@ fn start_server_listener(
                 }
             } else {
                 println!("no enemies...",);
-
                 match enemies.lock() {
                     Ok(mut enemies_locked) => *enemies_locked = None,
                     Err(e) => println!("Error while locking emenies: {e}"),
@@ -1436,7 +1475,7 @@ fn start_server_listener(
     });
 }
 fn draw_enemy_names_and_scores(_enemies: &Vec<Player>, font: &Font) {
-    let mut top_offset = NAME_MARGIN_TOP as f32 + 25.0;
+    let mut top_offset = NAME_MARGIN_TOP + 25.0;
     let params = TextParams {
         font: Some(font),
         font_size: GAME_FONT_SIZE,
@@ -1449,20 +1488,15 @@ fn draw_enemy_names_and_scores(_enemies: &Vec<Player>, font: &Font) {
     let mut enemies = _enemies.clone();
     enemies.sort_by(|a, b| b.score.cmp(&a.score));
     if enemies.len() > 8 {
-        enemies =  enemies[0..8].to_vec();
+        enemies = enemies[0..8].to_vec();
     }
 
     for enemy in enemies {
         if let PlayerStatus::Active = enemy.player_status {
-            draw_text_ex(
-                &enemy.name,
-                NAME_MARGIN_LEFT as f32,
-                top_offset,
-                params.clone(),
-            );
+            draw_text_ex(&enemy.name, NAME_MARGIN_LEFT, top_offset, params.clone());
             draw_text_ex(
                 format!("{}", enemy.score).as_str(),
-                SCORE_MARGIN_LEFT as f32,
+                SCORE_MARGIN_LEFT,
                 top_offset,
                 params.clone(),
             );
@@ -1470,6 +1504,8 @@ fn draw_enemy_names_and_scores(_enemies: &Vec<Player>, font: &Font) {
         }
     }
 }
+
+/*
 fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams) {
     for enemy in enemies {
         if let PlayerStatus::Active = enemy.player_status {
@@ -1482,6 +1518,7 @@ fn draw_enemies_on_minimap(enemies: &Vec<Player>, game_params: &GameParams) {
         }
     }
 }
+*/
 fn draw_shots(shots: &Vec<Shot>) {
     for shot in shots {
         draw_line_3d(shot.start, shot.end, shot.color);
@@ -1501,7 +1538,6 @@ fn remove_shots(shots: &mut Vec<Shot>) {
 fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool>>) {
     match hittables_ref.lock() {
         Ok(mut hittables) => {
-
             for (z, row) in mini_map.iter().enumerate() {
                 for (x, cell) in row.iter().enumerate() {
                     if !cell {
@@ -1556,11 +1592,12 @@ fn send_message_to_server(
 ) {
     let server_object = ServerMessage { sender_id, player };
     if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-        if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
-            println!(
-                "Error while sending message {} to server: {:?}",
-                message_to_server, e
-            );
-        }
+        // if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
+        //     println!(
+        //         "Error while sending message {} to server: {:?}",
+        //         message_to_server, e
+        //     );
+        // }
+        let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
     }
 }

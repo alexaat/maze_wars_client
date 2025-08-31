@@ -36,7 +36,6 @@ pub struct Player {
     pub right: Vec3,
     #[serde(skip_serializing, skip_deserializing)]
     pub position_vec3: Vec3,
-
 }
 impl Player {
     pub fn new() -> Self {
@@ -53,7 +52,7 @@ impl Player {
             pitch: 0.0,
             front: vec3(1.0, 0.0, 0.0),
             right: vec3(0.0, 0.0, 1.0),
-            position_vec3: vec3(1.0, 1.0, 1.0)   
+            position_vec3: vec3(1.0, 1.0, 1.0),
         }
     }
     //function that when player is used as enemy calculate if it was hit by other player
@@ -134,22 +133,22 @@ pub struct MiniMapConfig {
     pub cell_width: f32,
     pub cell_height: f32,
     pub cell_color: Color,
-    pub horizontal_offset: u32,
-    pub vertical_offset: u32,
+    pub horizontal_offset: f32,
+    pub vertical_offset: f32,
 }
 impl MiniMapConfig {
     pub fn new(
         mini_map: &Vec<Vec<bool>>,
-        mini_map_width: u32,
-        mini_map_height: u32,
-        horizontal_offset: u32,
-        vertical_offset: u32,
+        mini_map_width: f32,
+        mini_map_height: f32,
+        horizontal_offset: f32,
+        vertical_offset: f32,
         cell_color: Color,
     ) -> Self {
         let h = mini_map.len();
         let w = mini_map[0].len();
-        let cell_width = mini_map_width as f32 / w as f32;
-        let cell_height = mini_map_height as f32 / h as f32;
+        let cell_width = mini_map_width / w as f32;
+        let cell_height = mini_map_height / h as f32;
         MiniMapConfig {
             cell_width,
             cell_height,
@@ -170,6 +169,10 @@ pub struct GameParams {
     pub render_target: RenderTarget,
     pub last_mouse_position: Vec2,
     pub mini_map: Vec<Vec<bool>>,
+    pub mini_map_length_as_f32: f32,
+    pub mini_map_height_as_f32: f32,
+    pub mini_map_length_as_usize: usize,
+    pub mini_map_height_as_usize: usize,
     pub world_up: Vec3,
     pub shots: Vec<Shot>,
     pub hittables: Arc<Mutex<Vec<Hittable>>>,
@@ -236,7 +239,7 @@ pub enum Hittable {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ServerMessage{
+pub struct ServerMessage {
     pub sender_id: String,
-    pub player: Player
+    pub player: Player,
 }
