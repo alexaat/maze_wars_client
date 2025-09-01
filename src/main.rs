@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 use serde_json::from_str;
-use std::sync::Mutex;
+use std::sync::mpsc::Receiver;
 use std::{io, process::exit, usize};
 
 mod preferences;
@@ -13,9 +13,10 @@ mod utils;
 use utils::*;
 
 use std::net::UdpSocket;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc, Mutex};
 
 use std::{fs, thread};
+
 
 fn conf() -> Conf {
     Conf {
@@ -52,6 +53,8 @@ async fn main() {
     let enemies: Arc<Mutex<Option<Vec<Player>>>> = Arc::new(Mutex::new(None));
 
     let socket = Arc::new(UdpSocket::bind("0.0.0.0:0").unwrap());
+
+    //let (tx, rx) = mpsc::channel();
 
     //update server on the first round of the loop
     let mut is_first_tun = true;
@@ -1017,7 +1020,7 @@ fn handle_game_run(
 
             if is_key_pressed(KeyCode::Escape) {
                 player.player_status = PlayerStatus::Disconnent;
-                send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
+                send_message_to_server(socket, server_addr, &player, &player.id);
                 exit(0);
             }
 
@@ -1309,8 +1312,8 @@ fn handle_game_run(
                                     send_message_to_server(
                                         socket,
                                         server_addr,
-                                        enemy.clone(),
-                                        player.id.clone(),
+                                        &enemy,
+                                        &player.id,
                                     );
                                 }
                             }
@@ -1335,7 +1338,7 @@ fn handle_game_run(
             remove_shots(&mut game_params.shots);
 
             if require_update {
-                send_message_to_server(socket, server_addr, player.clone(), player.id.clone());
+                send_message_to_server(socket, server_addr, &player, &player.id);
             }
         }
         Err(e) => {
@@ -1348,7 +1351,7 @@ fn start_server_listener(
     enemies: Arc<Mutex<Option<Vec<Player>>>>,
     player: Arc<Mutex<Player>>,
     hittables: Arc<Mutex<Vec<Hittable>>>,
-    server_addr: String,
+    server_addr: String
 ) {
     let player_id = player.lock().unwrap().id.clone();
     //Server response listener
@@ -1587,17 +1590,25 @@ fn add_shields(hittables_ref: Arc<Mutex<Vec<Hittable>>>, mini_map: &Vec<Vec<bool
 fn send_message_to_server(
     socket: &Arc<UdpSocket>,
     server_addr: &String,
-    player: Player,
-    sender_id: String,
+    player: &Player,
+    sender_id: &String,
 ) {
-    let server_object = ServerMessage { sender_id, player };
-    if let Ok(message_to_server) = serde_json::to_string(&server_object) {
-        // if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
-        //     println!(
-        //         "Error while sending message {} to server: {:?}",
-        //         message_to_server, e
-        //     );
-        // }
-        let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
-    }
+
+    let server_object = ServerMessage { sender_id: sender_id.clone(), player: player.clone() };
+    let server_addr = server_addr.clone();
+    let socket = Arc::clone(socket);
+
+    thread::spawn(move || {  
+        if let Ok(message_to_server) = serde_json::to_string(&server_object) {
+            // if let Err(e) = socket.send_to(message_to_server.as_bytes(), server_addr) {
+            //     println!(
+            //         "Error while sending message {} to server: {:?}",
+            //         message_to_server, e
+            //     );
+            // }
+            let _ = socket.send_to(message_to_server.as_bytes(), server_addr);
+        }
+    });
+
+
 }
